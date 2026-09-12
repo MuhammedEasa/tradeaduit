@@ -12,7 +12,8 @@ import type { auditTask } from "../trigger/audit";
 const triggerConfigured = () =>
   !!process.env.TRIGGER_SECRET_KEY && !!process.env.TRIGGER_PROJECT_REF && process.env.AUDIT_MODE !== "inline";
 
-export function summarize(rec: AuditRecord): PreviousSummary | null {
+export function summarize(rec: AuditRecord | AuditView | null): PreviousSummary | null {
+  if (!rec) return null;
   const m = rec.result?.metrics;
   if (!m || !rec.result) return null;
   return {
@@ -26,8 +27,9 @@ export async function startAudit(csv: string, fileName: string, source?: { sourc
   await saveCsv(id, csv);
   const { previousAuditId, ...sourceInfo } = source ?? {};
   const rec: AuditRecord = { id, fileName, createdAt: new Date().toISOString(), status: "queued", mode: "inline", steps: [], ...sourceInfo };
-  const prevRec = previousAuditId ? await loadAudit(previousAuditId) : null;
-  const previous = prevRec ? summarize(prevRec) : null;
+  // getAudit (not loadAudit): a Trigger.dev run only lands in storage once someone reads it, and the
+  // previous audit may never have been opened in the browser.
+  const previous = previousAuditId ? summarize(await getAudit(previousAuditId)) : null;
 
   if (triggerConfigured()) {
     try {

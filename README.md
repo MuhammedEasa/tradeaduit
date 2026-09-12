@@ -11,7 +11,8 @@ Nobody types a question. The agent **observes → decides → acts**:
 1. **Observes** a raw CSV (MQL5 signal export / MT5 report / generic).
 2. **Decides** what matters by running 11 pattern detectors over computed metrics and ranking by severity.
 3. **Acts**: fetches news for the worst day, writes the report, **highlights the trades behind the top finding and applies a filter on the dashboard**, and **proposes actions** (journal entries, alert rules) that a human approves or rejects.
-4. **Feeds itself**: connect a **source** once (a broker report URL or a Drive/Dropbox direct link; self-hosters can also push files with the `scripts/sync.ts` folder agent). A Trigger.dev schedule pulls every source daily, hashes the file, and audits only when it changed. After the first setup nobody uploads anything.
+4. **Tracks its own advice**: on a re-audit of the same source it compares against the previous run and reports the delta ("score 67 → 77, 110 new trades, revenge-trading appeared, drawdown resolved") as its own finding.
+5. **Feeds itself**: connect a **source** once (a broker report URL or a Drive/Dropbox direct link; self-hosters can also push files with the `scripts/sync.ts` folder agent). A Trigger.dev schedule pulls every source daily, hashes the file, and audits only when it changed. After the first setup nobody uploads anything.
 
 ## Code computes, the LLM explains
 

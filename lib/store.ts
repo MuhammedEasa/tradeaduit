@@ -79,12 +79,15 @@ export async function appendStep(id: string, step: AuditStep) {
   await updateAudit(id, (rec) => ({ steps: [...rec.steps, step] }));
 }
 
-export async function latestAuditId(): Promise<string | null> {
+export async function listAudits(): Promise<AuditRecord[]> {
   await ensure();
   const files = (await readdir(AUDITS)).filter((f) => f.endsWith(".json"));
-  if (files.length === 0) return null;
   const recs = await Promise.all(files.map((f) => loadAudit(f.replace(/\.json$/, ""))));
-  return recs.filter(Boolean).sort((a, b) => b!.createdAt.localeCompare(a!.createdAt))[0]?.id ?? null;
+  return recs.filter((r): r is AuditRecord => !!r).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function latestAuditId(): Promise<string | null> {
+  return (await listAudits())[0]?.id ?? null;
 }
 
 // ---- actions the human approves ----

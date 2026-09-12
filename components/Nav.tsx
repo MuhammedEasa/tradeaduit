@@ -9,6 +9,7 @@ export function Nav({ right }: { right?: React.ReactNode }) {
   const items = [
     ["/", "Home"],
     ["/dashboard/latest", "Dashboard"],
+    ["/audits", "Audits"],
     ["/journal", "Journal"],
   ] as const;
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href.replace("/latest", "")));

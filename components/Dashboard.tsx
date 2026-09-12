@@ -10,6 +10,7 @@ import { CountUp } from "./CountUp";
 import { Markdown } from "./Markdown";
 import { Nav } from "./Nav";
 import { Ticker } from "./Ticker";
+import { DownloadPdf } from "./DownloadPdf";
 import { StageTracker, Skeleton, ScoreRing, Bars, FindingCard, splitReport, money } from "./ui";
 
 type Data = AuditView & { actions: ActionEntry[] };
@@ -90,7 +91,8 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
       <Nav right={<>
         <span className="text-xs text-ink-3">{data.mode === "trigger" ? "Trigger.dev job" : "inline job"}{data.runId ? ` · ${data.runId.slice(0, 12)}` : ""}</span>
         {r && !print && <Link className="btn btn-ghost" href={`/report/${id}`}>Report</Link>}
-        {r && print && <button className="btn" onClick={() => window.print()}>Export PDF</button>}
+        {r && print && <DownloadPdf targetId="report-root" fileName={`tradeaudit-${data.fileName.replace(/\.[^.]+$/, "")}-${data.createdAt.slice(0, 10)}.pdf`} />}
+        {r && print && <button className="btn btn-ghost" onClick={() => window.print()}>Print</button>}
         {!print && <Link className="btn" href="/">New audit</Link>}
       </>} />
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 pb-4">
@@ -102,7 +104,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         {print && <span className="ml-auto text-xs text-ink-3">TradeAudit report · {new Date(data.createdAt).toLocaleString()}</span>}
       </div>
 
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div id="report-root" className="mx-auto max-w-6xl space-y-6">
         {/* Live headlines for the instruments in this history */}
         {m && !print && <Ticker symbols={Object.entries(m.bySymbol).sort((a, b) => b[1].count - a[1].count).slice(0, 4).map(([s]) => s)} />}
 

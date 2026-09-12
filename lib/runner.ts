@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { tasks, runs } from "@trigger.dev/sdk";
 import { runAudit, type AuditOutput } from "./audit";
 import { parseTrades } from "./parse";
-import { loadAudit, loadCsv, saveAudit, saveCsv, updateAudit, type AuditRecord } from "./store";
+import { appendStep, loadAudit, loadCsv, saveAudit, saveCsv, updateAudit, type AuditRecord } from "./store";
 import type { AuditStep, Trade } from "./types";
 import type { auditTask } from "../trigger/audit";
 
@@ -34,10 +34,7 @@ export async function startAudit(csv: string, fileName: string, source?: { sourc
   void (async () => {
     await updateAudit(id, { status: "running" });
     try {
-      const out = await runAudit(csv, async (step) => {
-        const cur = await loadAudit(id);
-        await updateAudit(id, { steps: [...(cur?.steps ?? []), step] });
-      });
+      const out = await runAudit(csv, (step) => appendStep(id, step));
       const { trades: _t, ...result } = out;
       await updateAudit(id, { status: "done", result, steps: out.steps });
     } catch (err) {

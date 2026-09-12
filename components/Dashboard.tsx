@@ -22,6 +22,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const [err, setErr] = useState<string | null>(null);
   const [filter, setFilter] = useState<{ session?: string; exitReason?: string; onlyHighlighted?: boolean }>({});
   const markedUp = useRef(false);
+  const failures = useRef(0);
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +33,8 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
         const d = (await res.json()) as Data;
         if (stop) return;
+        failures.current = 0;
+        setErr(null);
         setData(d);
         // The agent marks up the dashboard once: apply its filter and select its top finding.
         if (d.status === "done" && d.result && !markedUp.current) {
@@ -41,7 +44,10 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         }
         if (!stop && d.status !== "done" && d.status !== "error") setTimeout(tick, 1200);
       } catch (e) {
-        if (!stop) { setErr((e as Error).message); setTimeout(tick, 3000); }
+        if (stop) return;
+        failures.current += 1;
+        if (failures.current >= 5) setErr((e as Error).message);   // transient: keep polling quietly first
+        setTimeout(tick, 1500);
       }
     };
     tick();
@@ -71,7 +77,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const decisionFor = (f: Finding) => data?.actions.find((a) => a.findingId === f.id);
 
   if (err && !data) return <main className="p-10 text-bad">Could not load audit: {err}</main>;
-  if (!data) return <main className="p-10 text-ink-3">Loading…</main>;
+  if (!data) return <main className="p-10 text-ink-3 pulse">Starting the agent…</main>;
 
   const m = r?.metrics;
 

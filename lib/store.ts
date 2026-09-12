@@ -1,7 +1,7 @@
 // lib/store.ts — tiny JSON-on-disk store for audits, journal entries and alert rules.
 // Good enough for a single-user demo; swap for SQLite/Postgres by replacing these functions.
 
-import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile, readdir, rename } from "node:fs/promises";
 import path from "node:path";
 import type { AuditStep } from "./types";
 import type { AuditOutput } from "./audit";
@@ -27,6 +27,24 @@ async function ensure() {
   await mkdir(AUDITS, { recursive: true });
 }
 
+// Atomic write: readers never see a half-written file (the dashboard polls while the job writes).
+async function writeAtomic(file: string, content: string) {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tmp, content, "utf8");
+  await rename(tmp, file);
+}
+
+// One writer at a time per audit id, so concurrent step updates never lose each other.
+const locks = new Map<string, Promise<void>>();
+async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = locks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((r) => (release = r));
+  locks.set(key, prev.then(() => next));
+  await prev;
+  try { return await fn(); } finally { release(); if (locks.get(key) === next) locks.delete(key); }
+}
+
 export async function saveCsv(id: string, csv: string) {
   await ensure();
   await writeFile(path.join(AUDITS, `${id}.csv`), csv, "utf8");
@@ -38,7 +56,7 @@ export async function loadCsv(id: string): Promise<string> {
 
 export async function saveAudit(rec: AuditRecord) {
   await ensure();
-  await writeFile(path.join(AUDITS, `${rec.id}.json`), JSON.stringify(rec), "utf8");
+  await writeAtomic(path.join(AUDITS, `${rec.id}.json`), JSON.stringify(rec));
 }
 
 export async function loadAudit(id: string): Promise<AuditRecord | null> {
@@ -49,10 +67,16 @@ export async function loadAudit(id: string): Promise<AuditRecord | null> {
   }
 }
 
-export async function updateAudit(id: string, patch: Partial<AuditRecord>) {
-  const rec = await loadAudit(id);
-  if (!rec) return;
-  await saveAudit({ ...rec, ...patch });
+export async function updateAudit(id: string, patch: Partial<AuditRecord> | ((rec: AuditRecord) => Partial<AuditRecord>)) {
+  await withLock(id, async () => {
+    const rec = await loadAudit(id);
+    if (!rec) return;
+    await saveAudit({ ...rec, ...(typeof patch === "function" ? patch(rec) : patch) });
+  });
+}
+
+export async function appendStep(id: string, step: AuditStep) {
+  await updateAudit(id, (rec) => ({ steps: [...rec.steps, step] }));
 }
 
 export async function latestAuditId(): Promise<string | null> {
@@ -88,7 +112,7 @@ export async function appendAction(entry: ActionEntry) {
   const name = entry.type === "journal" ? "journal" : "alerts";
   const list = await readList(name);
   list.push(entry);
-  await writeFile(path.join(DATA_DIR, `${name}.json`), JSON.stringify(list, null, 1), "utf8");
+  await writeAtomic(path.join(DATA_DIR, `${name}.json`), JSON.stringify(list, null, 1));
 }
 
 export async function listActions(auditId?: string): Promise<ActionEntry[]> {

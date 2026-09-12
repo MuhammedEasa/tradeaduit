@@ -6,7 +6,7 @@
 // The folder watcher (scripts/sync.ts) is the local counterpart for MT5 terminals: it pushes new files here.
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { startAudit } from "./runner";
 
@@ -32,7 +32,9 @@ async function readAll(): Promise<Source[]> {
 }
 async function writeAll(list: Source[]) {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(FILE, JSON.stringify(list, null, 1), "utf8");
+  const tmp = `${FILE}.${Date.now()}.tmp`;
+  await writeFile(tmp, JSON.stringify(list, null, 1), "utf8");
+  await rename(tmp, FILE);
 }
 
 export const listSources = readAll;

@@ -18,13 +18,19 @@ export function EquityCurve({ trades, highlighted }: { trades: Trade[]; highligh
 
   if (pts.length < 2) return <div className="h-[220px]" />;
 
-  const min = Math.min(0, ...pts.map((p) => p.eq)), max = Math.max(0, ...pts.map((p) => p.eq));
+  const lo = Math.min(0, ...pts.map((p) => p.eq)), hi = Math.max(0, ...pts.map((p) => p.eq));
+  // Round ticks: pick a step of 1/2/5 x 10^n giving ~5 ticks, then extend the range to whole steps.
+  const rawStep = (hi - lo || 1) / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((v) => v >= rawStep) ?? mag;
+  const min = Math.floor(lo / step) * step, max = Math.ceil(hi / step) * step;
+  const ticks: number[] = [];
+  for (let v = min; v <= max + 1e-9; v += step) ticks.push(v);
   const x = (i: number) => PL + (i / (pts.length - 1)) * (W - PL - PR);
   const y = (v: number) => PT + (1 - (v - min) / (max - min || 1)) * (H - PT - PB);
   const path = pts.map((p, i) => `${i ? "L" : "M"}${x(p.i).toFixed(1)},${y(p.eq).toFixed(1)}`).join(" ");
-  const ticks = [min, (min + max) / 2, max];
   const hp = hover != null ? pts[hover] : null;
-  const fmt = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n).toFixed(0)}`;
+  const fmt = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n) >= 10000 ? `${(Math.abs(n) / 1000).toFixed(1)}k` : Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   return (
     <div className="relative">

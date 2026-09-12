@@ -39,3 +39,22 @@ console.log("\nhand-check: first 3 trades chronologically (compare against raw f
 for (const t of trades.slice(0, 3)) console.log(" ", JSON.stringify(t));
 console.log("\nhand-check: newest trade (= first Buy/Sell row in the raw file):");
 console.log(" ", JSON.stringify(trades[trades.length - 1]));
+
+// ---------- metrics + findings ----------
+import { computeMetrics } from "../lib/metrics";
+import { detectFindings } from "../lib/findings";
+
+const m = computeMetrics(trades);
+console.log("\n================ METRICS ================");
+const { byDay, byHour, bySymbol: bs, ...rest } = m;
+console.log(JSON.stringify(rest, null, 1));
+console.log("byHour:", Object.entries(byHour).map(([h, v]) => `${h}h ${v.count}t ${v.pnl}`).join(" | "));
+console.log("days:", Object.keys(byDay).length, " worst:", m.worstDay, " best:", m.bestDay);
+
+const f = detectFindings(trades, m);
+console.log("\n================ FINDINGS ================");
+for (const x of f) {
+  console.log(`\n[${x.severity.toUpperCase()}] ${x.title}  (${x.tradeIds.length} trades)`);
+  console.log("   " + x.evidence);
+  if (x.suggestedAction) console.log("   -> " + x.suggestedAction.label);
+}

@@ -1,69 +1,83 @@
-import Image from "next/image";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Home() {
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [drag, setDrag] = useState(false);
+
+  async function upload(file: File | Blob, name: string) {
+    setBusy(name);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file, name);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const json = await res.json();
+    if (!res.ok) { setError(json.error ?? "Upload failed"); setBusy(null); return; }
+    router.push(`/dashboard/${json.id}`);
+  }
+
+  async function useSample() {
+    setBusy("sample.history.csv");
+    const res = await fetch("/sample.history.csv");
+    upload(await res.blob(), "sample.history.csv");
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen px-6">
+      <header className="mx-auto flex max-w-5xl items-center justify-between py-6">
+        <div className="flex items-center gap-2 font-semibold tracking-tight">
+          <span className="inline-block h-5 w-5 rounded-md bg-ink" /> TradeAudit
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <a className="text-sm text-ink-3 hover:text-ink" href="https://github.com/MuhammedEasa/tradeaduit" target="_blank" rel="noreferrer">GitHub</a>
+      </header>
+
+      <section className="mx-auto max-w-3xl pt-20 pb-12 text-center">
+        <p className="label mb-4">Agents, everywhere</p>
+        <h1 className="text-5xl font-semibold tracking-tight leading-[1.05] sm:text-6xl">
+          An auditor that reads your<br />trading history for you.
+        </h1>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-ink-2">
+          Upload a broker export. The agent parses it, computes the real numbers, finds your worst habits,
+          pulls the news behind your worst day and marks up your dashboard. No chat. No prompts.
+        </p>
+      </section>
+
+      <section className="mx-auto max-w-xl pb-24">
+        <label
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) upload(f, f.name); }}
+          className={`card flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-14 text-center transition ${drag ? "border-accent bg-muted" : ""}`}
+        >
+          <input type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f, f.name); }} />
+          <span className="text-2xl">↑</span>
+          <span className="font-medium">{busy ? `Uploading ${busy}…` : "Drop your history CSV here"}</span>
+          <span className="text-sm text-ink-3">MQL5 signal exports · MT5 reports · generic CSV with headers</span>
+        </label>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button className="btn" onClick={useSample} disabled={!!busy}>Run on the sample history</button>
+          <span className="text-sm text-ink-3">830 real XAUUSD trades</span>
         </div>
-      </main>
-    </div>
+        {error && <p className="mt-4 text-center text-sm text-bad">{error}</p>}
+      </section>
+
+      <section className="mx-auto grid max-w-5xl gap-6 border-t border-border py-16 sm:grid-cols-3">
+        {[
+          ["01", "Code does the math", "Every metric, every finding and every trade id is computed in TypeScript. The model only turns numbers into words."],
+          ["02", "It acts, you approve", "The agent highlights trades, applies filters, writes a report and proposes journal entries and alerts for you to accept or reject."],
+          ["03", "Runs on its own", "A durable Trigger.dev job with retries runs on upload and again every day, so the coaching stays current."],
+        ].map(([n, t, d]) => (
+          <div key={n}>
+            <p className="num text-sm text-ink-3">{n}</p>
+            <h3 className="mt-2 font-semibold">{t}</h3>
+            <p className="mt-1 text-sm text-ink-2 leading-relaxed">{d}</p>
+          </div>
+        ))}
+      </section>
+    </main>
   );
 }

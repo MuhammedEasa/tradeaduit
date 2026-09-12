@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Sources } from "@/components/Sources";
 
 export default function Home() {
   const router = useRouter();
@@ -36,22 +37,22 @@ export default function Home() {
       </header>
 
       <section className="mx-auto max-w-3xl pt-20 pb-12 text-center">
-        <p className="label mb-4">Agents, everywhere</p>
-        <h1 className="text-5xl font-semibold tracking-tight leading-[1.05] sm:text-6xl">
+        <p className="label mb-4 fade-up">Agents, everywhere</p>
+        <h1 className="fade-up d1 text-5xl font-semibold tracking-tight leading-[1.05] sm:text-6xl">
           An auditor that reads your<br />trading history for you.
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-ink-2">
+        <p className="fade-up d2 mx-auto mt-6 max-w-xl text-lg text-ink-2">
           Upload a broker export. The agent parses it, computes the real numbers, finds your worst habits,
           pulls the news behind your worst day and marks up your dashboard. No chat. No prompts.
         </p>
       </section>
 
-      <section className="mx-auto max-w-xl pb-24">
+      <section className="mx-auto max-w-xl pb-16">
         <label
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) upload(f, f.name); }}
-          className={`card flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-14 text-center transition ${drag ? "border-accent bg-muted" : ""}`}
+          className={`card fade-up d3 flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-14 text-center transition ${drag ? "border-accent bg-muted" : ""}`}
         >
           <input type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f, f.name); }} />
           <span className="text-2xl">↑</span>
@@ -65,11 +66,13 @@ export default function Home() {
         {error && <p className="mt-4 text-center text-sm text-bad">{error}</p>}
       </section>
 
+      <Sources />
+
       <section className="mx-auto grid max-w-5xl gap-6 border-t border-border py-16 sm:grid-cols-3">
         {[
           ["01", "Code does the math", "Every metric, every finding and every trade id is computed in TypeScript. The model only turns numbers into words."],
           ["02", "It acts, you approve", "The agent highlights trades, applies filters, writes a report and proposes journal entries and alerts for you to accept or reject."],
-          ["03", "Runs on its own", "A durable Trigger.dev job with retries runs on upload and again every day, so the coaching stays current."],
+          ["03", "Runs on its own", "Connect a source once. A Trigger.dev schedule pulls it daily, audits only what changed, and retries on failure."],
         ].map(([n, t, d]) => (
           <div key={n}>
             <p className="num text-sm text-ink-3">{n}</p>

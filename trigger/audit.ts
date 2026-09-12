@@ -28,14 +28,16 @@ export const auditTask = task({
   },
 });
 
-// Daily re-audit: asks the app to re-run its most recent upload so the coaching stays current.
-export const dailyReaudit = schedules.task({
-  id: "daily-reaudit",
+// Daily sync: pull every connected source (broker report URL, Drive/Dropbox link, ...) and audit the
+// ones whose file changed. Nobody uploads anything; the agent keeps itself current.
+export const dailySync = schedules.task({
+  id: "daily-sync",
   cron: "0 6 * * *",
   run: async () => {
     const base = process.env.APP_URL ?? "http://localhost:3000";
-    const res = await fetch(`${base}/api/rerun`, { method: "POST" });
-    logger.info("daily re-audit requested", { status: res.status });
-    return { status: res.status };
+    const res = await fetch(`${base}/api/sources/sync-all`, { method: "POST" });
+    const body = (await res.json()) as { checked?: number; newAudits?: number };
+    logger.info("daily sync", { status: res.status, ...body });
+    return { status: res.status, ...body };
   },
 });

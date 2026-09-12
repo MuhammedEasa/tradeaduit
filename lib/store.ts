@@ -16,6 +16,8 @@ export type AuditRecord = {
   status: "queued" | "running" | "done" | "error";
   mode: "trigger" | "inline";
   runId?: string;            // Trigger.dev run id when mode = trigger
+  sourceId?: string;         // set when the audit was started by a connected source, not a manual upload
+  sourceName?: string;
   steps: AuditStep[];
   result?: AuditOutput;
   error?: string;

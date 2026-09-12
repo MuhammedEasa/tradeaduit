@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { AuditView } from "@/lib/runner";
 import type { ActionEntry } from "@/lib/store";
 import type { Finding, Trade } from "@/lib/types";
 import { EquityCurve } from "./EquityCurve";
+import { CountUp } from "./CountUp";
 import { Markdown } from "./Markdown";
 
 type Data = AuditView & { actions: ActionEntry[] };
@@ -83,6 +84,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
           <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight"><span className="inline-block h-5 w-5 rounded-md bg-ink" /> TradeAudit</Link>
           <span className="text-ink-3">/</span>
           <span className="text-sm text-ink-2">{data.fileName}</span>
+          {data.sourceName && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-2">auto-synced · {data.sourceName}</span>}
           <span className={`rounded-full px-2 py-0.5 text-xs ${data.status === "done" ? "bg-muted text-good" : data.status === "error" ? "bg-muted text-bad" : "bg-muted text-accent pulse"}`}>
             {data.status === "done" ? "audit complete" : data.status === "error" ? "audit failed" : "agent working"}
           </span>
@@ -106,7 +108,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
             <ol className="num space-y-1.5 p-4 text-[13px] leading-relaxed">
               {data.steps.length === 0 && <li className="text-neutral-500 pulse">▸ queued, waiting for a worker…</li>}
               {data.steps.map((s, i) => (
-                <li key={i} className="flex gap-3">
+                <li key={i} className="flex gap-3 slide-in">
                   <span className="shrink-0 text-neutral-500">{s.ts.slice(11, 19)}</span>
                   <span className={`shrink-0 w-14 ${s.status === "done" ? "text-[#28c840]" : s.status === "error" ? "text-[#ff5f57]" : "text-[#febc2e] pulse"}`}>{s.status}</span>
                   <span><span className="text-neutral-100">{s.name}</span>{s.detail && <span className="text-neutral-400"> — {s.detail}</span>}</span>
@@ -121,33 +123,33 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
           <>
             {/* Stat tiles */}
             <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {[
-                ["Net P&L", money(m.totalPnL), m.totalPnL >= 0 ? "text-good" : "text-bad"],
-                ["Trades", m.totalTrades.toLocaleString(), ""],
-                ["Win rate", `${m.winRate}%`, ""],
-                ["Profit factor", String(m.profitFactor), ""],
-                ["Max drawdown", money(-m.maxDrawdown), "text-bad"],
-                ["Expectancy / trade", money(m.expectancy), m.expectancy >= 0 ? "text-good" : "text-bad"],
-              ].map(([l, v, c]) => (
-                <div key={l} className="card px-4 py-3"><p className="label">{l}</p><p className={`num mt-1 text-xl font-semibold ${c}`}>{v}</p></div>
+              {([
+                ["Net P&L", <CountUp key="pnl" value={m.totalPnL} format={money} />, m.totalPnL >= 0 ? "text-good" : "text-bad"],
+                ["Trades", <CountUp key="n" value={m.totalTrades} format={(n) => Math.round(n).toLocaleString()} />, ""],
+                ["Win rate", <CountUp key="wr" value={m.winRate} format={(n) => `${n.toFixed(2)}%`} />, ""],
+                ["Profit factor", <CountUp key="pf" value={m.profitFactor} format={(n) => n.toFixed(2)} />, ""],
+                ["Max drawdown", <CountUp key="dd" value={-m.maxDrawdown} format={money} />, "text-bad"],
+                ["Expectancy / trade", <CountUp key="ex" value={m.expectancy} format={money} />, m.expectancy >= 0 ? "text-good" : "text-bad"],
+              ] as [string, React.ReactNode, string][]).map(([l, v, c], i) => (
+                <div key={String(l)} className={`card px-4 py-3 fade-up d${i + 1}`}><p className="label">{l}</p><p className={`num mt-1 text-xl font-semibold ${c}`}>{v}</p></div>
               ))}
             </section>
 
             <div className="grid gap-6 lg:grid-cols-3">
               {/* Score card */}
-              <section className="card p-5">
+              <section className="card p-5 fade-up d2">
                 <p className="label">Score</p>
-                <div className="mt-2 flex items-end gap-2"><span className="num text-5xl font-semibold">{m.score.total}</span><span className="mb-2 text-ink-3">/100</span></div>
+                <div className="mt-2 flex items-end gap-2"><span className="num text-5xl font-semibold"><CountUp value={m.score.total} format={(n) => String(Math.round(n))} duration={1400} /></span><span className="mb-2 text-ink-3">/100</span></div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {Object.entries(m.score.grades).map(([k, g]) => (
-                    <div key={k}><p className="text-xs capitalize text-ink-3">{k}</p><p className={`num text-2xl font-semibold ${GRADE_COLOR(g)}`}>{g}</p></div>
+                    <div key={k} className={`pop d${["profitability","risk","drawdown","consistency"].indexOf(k) + 5}`}><p className="text-xs capitalize text-ink-3">{k}</p><p className={`num text-2xl font-semibold ${GRADE_COLOR(g)}`}>{g}</p></div>
                   ))}
                 </div>
                 <p className="mt-4 text-xs text-ink-3">{r.parse.profile} · {r.parse.tradeCount} trades · {r.parse.dropped.toLocaleString()} rows skipped · {m.dateRange.from.slice(0, 10)} → {m.dateRange.to.slice(0, 10)}</p>
               </section>
 
               {/* Equity curve */}
-              <section className="card p-5 lg:col-span-2">
+              <section className="card p-5 lg:col-span-2 fade-up d3">
                 <div className="flex items-baseline justify-between"><p className="label">Realised P&L, cumulative</p><p className="text-xs text-ink-3">{Object.keys(m.byDay).length} trading days</p></div>
                 <EquityCurve trades={trades} highlighted={selectedIds} />
               </section>
@@ -155,7 +157,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
 
             <div className="grid gap-6 lg:grid-cols-3">
               {/* Breakdown tables */}
-              <section className="card p-5 space-y-5">
+              <section className="card p-5 space-y-5 fade-up d4">
                 <div>
                   <p className="label mb-2">By session (broker time)</p>
                   <table className="w-full text-sm"><tbody>
@@ -196,13 +198,13 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
               </section>
 
               {/* Findings + actions */}
-              <section className="card p-5 lg:col-span-2">
+              <section className="card p-5 lg:col-span-2 fade-up d5">
                 <div className="flex items-baseline justify-between"><p className="label">Findings</p><p className="text-xs text-ink-3">{r.findings.length} detected · click one to highlight its trades</p></div>
                 <ol className="mt-3 divide-y divide-border">
                   {r.findings.map((f, i) => {
                     const d = decisionFor(f);
                     return (
-                      <li key={f.id} className={`py-3 ${selected === f.id ? "bg-muted -mx-3 px-3 rounded-lg" : ""}`}>
+                      <li key={f.id} className={`py-3 fade-up d${Math.min(8, i + 1)} transition-colors ${selected === f.id ? "bg-muted -mx-3 px-3 rounded-lg" : ""}`}>
                         <button className="flex w-full items-start gap-3 text-left" onClick={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }}>
                           <span className="num mt-0.5 text-xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
                           <span className="flex-1">
@@ -235,7 +237,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
             </div>
 
             {/* Coaching report + news */}
-            <section className="card p-6">
+            <section className="card p-6 fade-up d6">
               <div className="flex items-baseline justify-between"><p className="label">Coaching report</p><p className="text-xs text-ink-3">written by GPT-4o via OpenRouter from the numbers above · no figure is generated by the model</p></div>
               <div className="report mt-2 max-w-3xl text-[15px]"><Markdown text={r.report} /></div>
               {r.news.some((n) => n.sources.length) && (
@@ -255,7 +257,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
 
             {/* Trades table */}
             {!print && (
-              <section className="card p-5">
+              <section className="card p-5 fade-up d7">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="label">Trades <span className="num normal-case tracking-normal text-ink-2">{visible.length} of {trades.length}</span></p>
                   <div className="flex flex-wrap items-center gap-2 text-sm">

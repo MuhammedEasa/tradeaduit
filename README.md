@@ -11,7 +11,7 @@ Nobody types a question. The agent **observes → decides → acts**:
 1. **Observes** a raw CSV (MQL5 signal export / MT5 report / generic).
 2. **Decides** what matters by running 11 pattern detectors over computed metrics and ranking by severity.
 3. **Acts**: fetches news for the worst day, writes the report, **highlights the trades behind the top finding and applies a filter on the dashboard**, and **proposes actions** (journal entries, alert rules) that a human approves or rejects.
-4. **Runs on its own**: a durable Trigger.dev job with retries, triggered on upload and on a daily schedule.
+4. **Feeds itself**: connect a **source** once (a broker report URL, a Drive/Dropbox link, or a local folder watched by `scripts/sync.ts`). A Trigger.dev schedule pulls every source daily, hashes the file, and audits only when it changed. After the first setup nobody uploads anything.
 
 ## Code computes, the LLM explains
 
@@ -35,7 +35,8 @@ upload CSV ─► POST /api/upload ─► Trigger.dev task "audit-csv"  (fallbac
                                        │  each step → run metadata (retries on failure)
 dashboard ◄─ polls GET /api/audit/:id ◄┘  live activity feed · stat tiles · equity curve · findings · report · actions
                                           POST /api/actions  → journal / alert store
-schedule "daily-reaudit" (06:00) ─► POST /api/rerun ─► re-audits the latest upload
+sources: URL (pulled) or folder (pushed by scripts/sync.ts) ─► hash compare ─► audit only if changed
+schedule "daily-sync" (06:00) ─► POST /api/sources/sync-all ─► every source, every day
 /report/:id → print-styled page → Export PDF
 ```
 
@@ -47,7 +48,8 @@ schedule "daily-reaudit" (06:00) ─► POST /api/rerun ─► re-audits the lat
 | `lib/news.ts` | Exa search for the worst day, fails soft |
 | `lib/llm.ts` | OpenRouter → OpenAI: cheap model tags, strong model writes the report from computed JSON only |
 | `lib/audit.ts` | The pipeline with step logging and retries |
-| `trigger/audit.ts` | Trigger.dev task + daily schedule |
+| `trigger/audit.ts` | Trigger.dev task + daily sync schedule |
+| `lib/sources.ts`, `scripts/sync.ts` | Connected sources (URL pull / folder push), change detection, local sync agent |
 | `lib/runner.ts`, `lib/store.ts` | Job start/poll, JSON store for audits, journal, alerts |
 | `components/Dashboard.tsx` | The dashboard the agent marks up |
 
@@ -79,6 +81,7 @@ npm run dev                 # http://localhost:3000  → "Run on the sample hist
 npx trigger.dev@latest dev  # optional: runs the audit as a Trigger.dev job; without it the job runs inline
 npx tsx scripts/check.ts    # parser + metrics + findings on sample.history.csv, no keys needed
 npx tsx --env-file=.env scripts/run-audit.ts   # full pipeline in the terminal
+npx tsx scripts/sync.ts "<folder>" <sourceId>  # local sync agent: watches a folder, pushes new exports
 ```
 
 Supports MQL5 signal exports and MT5 history reports; header profiles in `lib/parse.ts` are extensible. Sessions are in broker server time.

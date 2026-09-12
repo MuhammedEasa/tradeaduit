@@ -43,9 +43,9 @@ export function EquityCurve({ trades, highlighted }: { trades: Trade[]; highligh
         <line x1={PL} x2={W - PR} y1={y(0)} y2={y(0)} stroke="#a3a3a3" strokeWidth={1} strokeDasharray="3 3" />
         <text x={PL} y={H - 8} fontSize={11} fill="#737373">{pts[0].t.closeTime.slice(0, 10)}</text>
         <text x={W - PR} y={H - 8} fontSize={11} fill="#737373" textAnchor="end">{pts[pts.length - 1].t.closeTime.slice(0, 10)}</text>
-        <path d={path} fill="none" stroke="#0066ff" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={path} className="draw" fill="none" stroke="#0066ff" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {pts.filter((p) => highlighted.has(p.t.id)).map((p) => (
-          <circle key={p.t.id} cx={x(p.i)} cy={y(p.eq)} r={4} fill="#d93025" stroke="#fff" strokeWidth={2} />
+          <circle key={p.t.id} className="pop" style={{ animationDelay: `${1.2 + (p.i / pts.length) * 0.8}s`, transformOrigin: `${x(p.i)}px ${y(p.eq)}px` }} cx={x(p.i)} cy={y(p.eq)} r={4} fill="#d93025" stroke="#fff" strokeWidth={2} />
         ))}
         {hp && (
           <g>

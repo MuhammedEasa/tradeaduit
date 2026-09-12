@@ -12,10 +12,10 @@ import type { auditTask } from "../trigger/audit";
 const triggerConfigured = () =>
   !!process.env.TRIGGER_SECRET_KEY && !!process.env.TRIGGER_PROJECT_REF && process.env.AUDIT_MODE !== "inline";
 
-export async function startAudit(csv: string, fileName: string): Promise<AuditRecord> {
+export async function startAudit(csv: string, fileName: string, source?: { sourceId: string; sourceName: string }): Promise<AuditRecord> {
   const id = randomUUID().slice(0, 8);
   await saveCsv(id, csv);
-  const rec: AuditRecord = { id, fileName, createdAt: new Date().toISOString(), status: "queued", mode: "inline", steps: [] };
+  const rec: AuditRecord = { id, fileName, createdAt: new Date().toISOString(), status: "queued", mode: "inline", steps: [], ...source };
 
   if (triggerConfigured()) {
     try {
@@ -54,6 +54,8 @@ export type AuditView = {
   status: AuditRecord["status"];
   mode: AuditRecord["mode"];
   runId?: string;
+  sourceId?: string;
+  sourceName?: string;
   steps: AuditStep[];
   result?: AuditOutput;
   trades?: Trade[];

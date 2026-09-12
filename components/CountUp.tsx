@@ -1,0 +1,21 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+// Animates a number from 0 to its value once on mount; formatting stays with the caller.
+export function CountUp({ value, format, duration = 900 }: { value: number; format: (n: number) => string; duration?: number }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setV(value * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{format(v)}</>;
+}

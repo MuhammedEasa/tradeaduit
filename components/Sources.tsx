@@ -12,10 +12,16 @@ export function Sources() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [origin, setOrigin] = useState("");
 
-  const load = async () => setList(await (await fetch("/api/sources", { cache: "no-store" })).json());
-  useEffect(() => { load(); setOrigin(window.location.origin); }, []);
+  const load = async () => {
+    const res = await fetch("/api/sources", { cache: "no-store" });
+    setList(await res.json());
+  };
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/sources", { cache: "no-store" }).then((r) => r.json()).then((d: Source[]) => { if (alive) setList(d); });
+    return () => { alive = false; };
+  }, []);
 
   async function add() {
     setError(null); setBusy("add");
@@ -56,7 +62,7 @@ export function Sources() {
             <option value="url">URL (broker report, Drive/Dropbox link, raw GitHub)</option>
             <option value="folder">Folder on my computer (MT5 exports)</option>
           </select>
-          {kind === "url" && <input className="min-w-64 flex-[2] rounded-md border border-border px-3 py-2 text-sm num" placeholder={`${origin}/sample.history.csv`} value={url} onChange={(e) => setUrl(e.target.value)} />}
+          {kind === "url" && <input className="min-w-64 flex-[2] rounded-md border border-border px-3 py-2 text-sm num" placeholder="https://…/history.csv  (try: http://localhost:3000/sample.history.csv)" value={url} onChange={(e) => setUrl(e.target.value)} />}
           <button className="btn" disabled={busy === "add" || !name || (kind === "url" && !url)} onClick={add}>Connect</button>
         </div>
         {kind === "folder" && <p className="mt-2 text-xs text-ink-3">After connecting, run the local sync agent: <code className="num">npx tsx scripts/sync.ts &quot;&lt;folder&gt;&quot; &lt;sourceId&gt;</code>. It watches the folder and pushes any new export here.</p>}

@@ -30,9 +30,7 @@ export default function Home() {
   return (
     <main className="min-h-screen px-6">
       <header className="mx-auto flex max-w-5xl items-center justify-between py-6">
-        <div className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="inline-block h-5 w-5 rounded-md bg-ink" /> TradeAudit
-        </div>
+        <img src="/logo.png" alt="TradeAudit" className="h-8 w-auto" />
         <a className="text-sm text-ink-3 hover:text-ink" href="https://github.com/MuhammedEasa/tradeaduit" target="_blank" rel="noreferrer">GitHub</a>
       </header>
 

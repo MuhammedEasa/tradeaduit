@@ -11,8 +11,9 @@ export function EquityCurve({ trades, highlighted }: { trades: Trade[]; highligh
 
   const pts = useMemo(() => {
     const sorted = [...trades].sort((a, b) => a.closeTime.localeCompare(b.closeTime));
-    let eq = 0;
-    return sorted.map((t, i) => { eq += t.profit; return { i, t, eq }; });
+    const out: { i: number; t: Trade; eq: number }[] = [];
+    sorted.forEach((t, i) => out.push({ i, t, eq: (out[i - 1]?.eq ?? 0) + t.profit }));
+    return out;
   }, [trades]);
 
   if (pts.length < 2) return <div className="h-[220px]" />;

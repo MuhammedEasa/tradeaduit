@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TradeAudit",
   description: "An agent that audits your trading history on its own",
+  icons: { icon: "/logo-mark.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

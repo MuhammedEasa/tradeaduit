@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { AuditView } from "@/lib/runner";
 import type { ActionEntry } from "@/lib/store";
 import type { Finding, Trade } from "@/lib/types";
@@ -21,7 +21,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [filter, setFilter] = useState<{ session?: string; exitReason?: string; onlyHighlighted?: boolean }>({});
-  const [filterSetByAgent, setFilterSetByAgent] = useState(false);
+  const markedUp = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,7 +31,14 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         const res = await fetch(`/api/audit/${id}`, { cache: "no-store" });
         if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
         const d = (await res.json()) as Data;
-        if (!stop) setData(d);
+        if (stop) return;
+        setData(d);
+        // The agent marks up the dashboard once: apply its filter and select its top finding.
+        if (d.status === "done" && d.result && !markedUp.current) {
+          markedUp.current = true;
+          if (d.result.appliedFilter) setFilter({ ...d.result.appliedFilter, onlyHighlighted: true });
+          if (d.result.findings[0]) setSelected(d.result.findings[0].id);
+        }
         if (!stop && d.status !== "done" && d.status !== "error") setTimeout(tick, 1200);
       } catch (e) {
         if (!stop) { setErr((e as Error).message); setTimeout(tick, 3000); }
@@ -40,15 +47,6 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
     tick();
     return () => { stop = true; };
   }, [id]);
-
-  // The agent marks up the dashboard once: apply its filter and select its top finding.
-  useEffect(() => {
-    if (data?.status === "done" && data.result && !filterSetByAgent) {
-      setFilterSetByAgent(true);
-      if (data.result.appliedFilter) setFilter({ ...data.result.appliedFilter, onlyHighlighted: true });
-      if (data.result.findings[0]) setSelected(data.result.findings[0].id);
-    }
-  }, [data, filterSetByAgent]);
 
   const r = data?.result;
   const trades = data?.trades ?? [];
@@ -81,7 +79,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
     <main className="min-h-screen px-6 pb-20">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 py-5">
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight"><span className="inline-block h-5 w-5 rounded-md bg-ink" /> TradeAudit</Link>
+          <Link href="/" className="flex items-center"><img src="/logo.png" alt="TradeAudit" className="h-7 w-auto" /></Link>
           <span className="text-ink-3">/</span>
           <span className="text-sm text-ink-2">{data.fileName}</span>
           {data.sourceName && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-2">auto-synced · {data.sourceName}</span>}
@@ -261,7 +259,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="label">Trades <span className="num normal-case tracking-normal text-ink-2">{visible.length} of {trades.length}</span></p>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    {filterSetByAgent && r.appliedFilter && <span className="text-xs text-accent">filter applied by the agent</span>}
+                    {r.appliedFilter && filter.onlyHighlighted && selected === r.findings[0]?.id && <span className="text-xs text-accent">filter applied by the agent</span>}
                     <select className="rounded-md border border-border px-2 py-1" value={filter.session ?? ""} onChange={(e) => setFilter({ ...filter, session: e.target.value || undefined })}>
                       <option value="">All sessions</option><option value="asian">Asian</option><option value="london">London</option><option value="ny">New York</option>
                     </select>

@@ -95,6 +95,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         </div>
         <div className="no-print flex items-center gap-2">
           <span className="text-xs text-ink-3">{data.mode === "trigger" ? "Trigger.dev job" : "inline job"}{data.runId ? ` · ${data.runId.slice(0, 12)}` : ""}</span>
+          {!print && <Link className="btn btn-ghost" href="/journal">Journal</Link>}
           {r && !print && <Link className="btn btn-ghost" href={`/report/${id}`}>Report</Link>}
           {r && print && <button className="btn" onClick={() => window.print()}>Export PDF</button>}
           {!print && <Link className="btn" href="/">New audit</Link>}
@@ -208,7 +209,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
                   {r.findings.map((f, i) => {
                     const d = decisionFor(f);
                     return (
-                      <li key={f.id} className={`py-3 fade-up d${Math.min(8, i + 1)} transition-colors ${selected === f.id ? "bg-muted -mx-3 px-3 rounded-lg" : ""}`}>
+                      <li key={f.id} id={f.id} className={`py-3 fade-up d${Math.min(8, i + 1)} transition-colors ${selected === f.id ? "bg-muted -mx-3 px-3 rounded-lg" : ""}`}>
                         <button className="flex w-full items-start gap-3 text-left" onClick={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }}>
                           <span className="num mt-0.5 text-xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
                           <span className="flex-1">
@@ -224,7 +225,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
                           <div className="no-print mt-2 flex flex-wrap items-center gap-2 pl-8">
                             <span className="text-sm text-ink-2">{f.suggestedAction.label}</span>
                             {d ? (
-                              <span className={`text-xs ${d.decision === "approved" ? "text-good" : "text-ink-3"}`}>{d.decision === "approved" ? `✓ ${d.type === "journal" ? "added to journal" : "alert set"}` : "dismissed"}</span>
+                              <span className={`text-xs ${d.decision === "approved" ? "text-good" : "text-ink-3"}`}>{d.decision === "approved" ? <>✓ {d.type === "journal" ? "added to journal" : "alert set"} · <Link className="underline" href="/journal">view</Link></> : "dismissed"}</span>
                             ) : (
                               <>
                                 <button className="btn !py-1 !px-3 !text-xs" onClick={() => decide(f, "approved")}>Approve</button>

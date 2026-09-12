@@ -9,6 +9,7 @@ import { EquityCurve } from "./EquityCurve";
 import { CountUp } from "./CountUp";
 import { Markdown } from "./Markdown";
 import { Nav } from "./Nav";
+import { Ticker } from "./Ticker";
 
 type Data = AuditView & { actions: ActionEntry[] };
 
@@ -100,6 +101,9 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
       </div>
 
       <div className="mx-auto max-w-6xl space-y-6">
+        {/* Live headlines for the instruments in this history */}
+        {m && !print && <Ticker symbols={Object.entries(m.bySymbol).sort((a, b) => b[1].count - a[1].count).slice(0, 4).map(([s]) => s)} />}
+
         {/* Activity feed: what the agent is doing, live */}
         {!print && (
           <section className="mac">

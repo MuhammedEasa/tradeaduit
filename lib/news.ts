@@ -49,3 +49,43 @@ export async function fetchNewsForDay(symbol: string, day: string, numResults = 
   });
   return { query, sources };
 }
+
+// ---- live market headlines (the ticker) ----
+// One Exa query per instrument, last 2 days, cached in memory for 30 minutes per symbol set.
+
+export type Headline = { symbol: string; title: string; url: string; publishedDate?: string; source: string };
+const cache = new Map<string, { at: number; items: Headline[] }>();
+const TTL_MS = 30 * 60 * 1000;
+
+export async function fetchHeadlines(symbols: string[], perSymbol = 3): Promise<Headline[]> {
+  const key = symbols.map((s) => s.toUpperCase()).sort().join(",");
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.items;
+
+  const apiKey = process.env.EXA_API_KEY;
+  if (!apiKey) return [];
+  const exa = new Exa(apiKey);
+  const today = new Date().toISOString().slice(0, 10);
+  const results = await Promise.all(symbols.map(async (symbol) => {
+    try {
+      const res = await exa.search(`${describeSymbol(symbol)} price news today`, {
+        numResults: perSymbol,
+        type: "auto",
+        category: "news",
+        startPublishedDate: shiftDay(today, -2),
+      });
+      return (res.results ?? []).map((r) => ({
+        symbol: symbol.toUpperCase(),
+        title: (r.title ?? r.url).split(/\s+[|–—-]\s+(?=[A-Z])/)[0].trim().slice(0, 110),   // drop " - Site Name" suffixes
+        url: r.url,
+        publishedDate: r.publishedDate,
+        source: new URL(r.url).hostname.replace(/^www\./, ""),
+      }));
+    } catch {
+      return [] as Headline[];
+    }
+  }));
+  const items = results.flat();
+  cache.set(key, { at: Date.now(), items });
+  return items;
+}

@@ -57,8 +57,8 @@ export function Sources() {
 
       <div className="card p-4">
         <div className="flex flex-wrap gap-2">
-          <input className="min-w-40 flex-1 rounded-md border border-border px-3 py-2 text-sm" placeholder="Name, e.g. Gold scalping account" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="min-w-64 flex-[2] rounded-md border border-border px-3 py-2 text-sm num" placeholder="https://…/history.csv  (broker web report, Drive/Dropbox direct link)" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input className="min-w-40 flex-1 rounded-md border border-border px-3 py-2 text-sm" placeholder="Account name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="min-w-64 flex-[2] rounded-md border border-border px-3 py-2 text-sm num" placeholder="https://…/history.csv" value={url} onChange={(e) => setUrl(e.target.value)} />
           <button className="btn" disabled={busy === "add" || !name || !url} onClick={add}>Connect</button>
         </div>
         {error && <p className="mt-2 text-sm text-bad">{error}</p>}

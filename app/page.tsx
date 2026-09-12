@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Sources } from "@/components/Sources";
 import { Nav } from "@/components/Nav";
+import { Ticker } from "@/components/Ticker";
 
 export default function Home() {
   const router = useRouter();
@@ -32,14 +33,16 @@ export default function Home() {
     <main className="min-h-screen px-6">
       <Nav right={<a className="text-sm text-ink-3 hover:text-ink" href="https://github.com/MuhammedEasa/tradeaduit" target="_blank" rel="noreferrer">GitHub</a>} />
 
-      <section className="mx-auto max-w-3xl pt-20 pb-12 text-center">
-        <p className="label mb-4 fade-up">Agents, everywhere</p>
+      <div className="mx-auto max-w-5xl fade-up mb-6"><Ticker symbols={["XAUUSD", "EURUSD", "NAS100", "BTCUSD"]} /></div>
+
+      <section className="mx-auto max-w-3xl pt-16 pb-12 text-center">
+        <p className="label mb-4 fade-up">Autonomous trading auditor</p>
         <h1 className="fade-up d1 text-5xl font-semibold tracking-tight leading-[1.05] sm:text-6xl">
           An auditor that reads your<br />trading history for you.
         </h1>
         <p className="fade-up d2 mx-auto mt-6 max-w-xl text-lg text-ink-2">
-          Upload a broker export. The agent parses it, computes the real numbers, finds your worst habits,
-          pulls the news behind your worst day and marks up your dashboard. No chat. No prompts.
+          Connect your trading history once. The agent computes the real numbers, finds your worst habits,
+          pulls the news behind your worst day and proposes fixes for you to approve. No chat. No prompts.
         </p>
       </section>
 
@@ -55,9 +58,8 @@ export default function Home() {
           <span className="font-medium">{busy ? `Uploading ${busy}…` : "Drop your history CSV here"}</span>
           <span className="text-sm text-ink-3">MQL5 signal exports · MT5 reports · generic CSV with headers</span>
         </label>
-        <div className="mt-4 flex items-center justify-center gap-3">
-          <button className="btn" onClick={useSample} disabled={!!busy}>Run on the sample history</button>
-          <span className="text-sm text-ink-3">830 real XAUUSD trades</span>
+        <div className="mt-4 flex items-center justify-center">
+          <button className="btn btn-ghost" onClick={useSample} disabled={!!busy}>Try it with sample data</button>
         </div>
         {error && <p className="mt-4 text-center text-sm text-bad">{error}</p>}
       </section>

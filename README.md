@@ -28,6 +28,46 @@ Every number on screen is produced in TypeScript (`lib/metrics.ts`, `lib/finding
 | Worst day 2026‑04‑23 | −$177.81; Exa found the FXStreet coverage: yields + Hormuz tension hit gold |
 | 31 revenge re-entries | re-entered within 5 min of a loss at ≥ size, 42% win rate vs 63% overall |
 
+## How it works, in plain English
+
+**You give it your trading history once.** Either drop in the CSV your platform exports, or paste a link to it and let the agent fetch it every day by itself. Broker APIs are the next step: any read-only feed that returns your closed trades (MetaApi for MT4/MT5 using an investor password, cTrader Open API, a prop-firm dashboard export) plugs into the same place a CSV does, because everything downstream works on one clean list of trades.
+
+**The agent reads the file the way a person would.** It works out which platform the export came from, throws away the rows that are not real trades (cancelled orders, deposits, withdrawals), fixes the number and date formats, and tells you what it did: *"Detected MQL5 signals export: 830 closed trades, 2,267 non-trade rows skipped."* If a column your platform does not provide is missing, it says so instead of guessing.
+
+**Then it does the arithmetic.** Win rate, profit factor, expectancy, drawdown, how you do by session and by hour, how you exit, how long you hold winners against losers, how often you open several positions in the same second, how often you jump straight back in after a loss. All of it is computed in code, so the numbers are the numbers.
+
+**It looks for the habits behind those numbers.** Twelve checks run over the results, each one either fires or stays quiet. A check only fires when there is enough evidence, and when it fires it keeps the exact trades that prove it, so every claim on screen can be clicked and inspected. Findings are ranked by how much they are costing you.
+
+**It goes and reads the news for your worst day.** It picks the day you lost the most, works out which instrument did the damage, and searches the web for what moved that market on that date, keeping the three best sources.
+
+**It writes the coaching, but never the numbers.** The model receives only the figures the code produced, plus the findings and the news, and is told that every number it writes must already appear in that data. It cannot invent a statistic. If the model or the news search is unavailable, the audit still finishes and says so.
+
+**Then it acts.** It highlights the trades behind your biggest leak, filters your trade table down to them, drops a score card and a written verdict on the dashboard, and proposes one concrete fix per finding: a journal rule to keep, or an alert to set. Nothing is applied until you press Approve.
+
+**And it keeps going.** Every morning it re-checks your connected source. If the history has not changed, it does nothing. If it has, it re-audits and compares against last time: *"score 67 to 77, 110 new trades, revenge trading appeared, drawdown resolved."* It grades its own advice.
+
+### How the score is worked out
+
+The number out of 100 is the average of four pillars, each computed from your trades and nothing else:
+
+- **Profitability** - your profit factor, mapped so that 1.5 is average and 2.5 is excellent.
+- **Risk management** - what share of trades carried a stop, and how much of your trading is several positions opened at the same instant. If your export does not include stop-loss data, this pillar stays neutral rather than punishing you for a missing column.
+- **Drawdown control** - how far your realised profit fell from its own peak, relative to that peak.
+- **Consistency** - the share of your trading days that ended green.
+
+Each pillar also gets a letter, A to F, so you can see which part of your trading is dragging the score down.
+
+### What each page is for
+
+| Page | What it is for |
+|---|---|
+| **Home** | Give the agent your history: drop a file, or connect a source it will pull by itself from then on. Live market headlines run across the top. |
+| **Dashboard** | The audit itself. Watch the agent work step by step, then read the headline numbers, the score, the equity curve, your findings, and the coach's verdict. Approve or reject the fixes it proposes. |
+| **Audits** | Every audit ever run, newest first, with its score and biggest finding. This is where daily re-audits stack up, so you can see whether you are getting better. |
+| **Journal** | The rules you agreed to and the alerts you set. Everything here was proposed by the agent and approved by you. |
+| **Report** | A clean, printable version of the audit, with an Export PDF button. |
+
+
 ## Architecture
 
 ```
@@ -85,7 +125,7 @@ npx tsx --env-file=.env scripts/run-audit.ts   # full pipeline in the terminal
 npx tsx scripts/sync.ts "<folder>" <sourceId>  # local sync agent: watches a folder, pushes new exports
 ```
 
-Supports MQL5 signal exports and MT5 history reports; header profiles in `lib/parse.ts` are extensible. Sessions are in broker server time.
+Supports MQL5 signal exports, MT5 history reports and generic CSVs with recognisable headers; header profiles in `lib/parse.ts` are extensible. Broker APIs (MetaApi for MT4/MT5 via investor password, cTrader Open API) attach at the same seam as a connected URL source - they produce the same `Trade[]`, so metrics, findings, news and reporting need no changes. Sessions are in broker server time.
 
 ## Deploy (free): Vercel + Upstash + Trigger.dev cloud
 

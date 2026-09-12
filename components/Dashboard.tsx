@@ -91,7 +91,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
       <Nav right={<>
         <span className="text-xs text-ink-3">{data.mode === "trigger" ? "Trigger.dev job" : "inline job"}{data.runId ? ` · ${data.runId.slice(0, 12)}` : ""}</span>
         {r && !print && <Link className="btn btn-ghost" href={`/report/${id}`}>Report</Link>}
-        {r && print && <DownloadPdf targetId="report-root" fileName={`tradeaudit-${data.fileName.replace(/\.[^.]+$/, "")}-${data.createdAt.slice(0, 10)}.pdf`} />}
+        {r && print && <DownloadPdf input={{ fileName: data.fileName, createdAt: data.createdAt, sourceName: data.sourceName, result: r }} />}
         {r && print && <button className="btn btn-ghost" onClick={() => window.print()}>Print</button>}
         {!print && <Link className="btn" href="/">New audit</Link>}
       </>} />

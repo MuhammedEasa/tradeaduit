@@ -8,6 +8,7 @@ import type { Finding, Trade } from "@/lib/types";
 import { EquityCurve } from "./EquityCurve";
 import { CountUp } from "./CountUp";
 import { Markdown } from "./Markdown";
+import { Nav } from "./Nav";
 
 type Data = AuditView & { actions: ActionEntry[] };
 
@@ -83,24 +84,20 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
 
   return (
     <main className="min-h-screen px-6 pb-20">
-      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 py-5">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center"><img src="/logo.png" alt="TradeAudit" className="h-7 w-auto" /></Link>
-          <span className="text-ink-3">/</span>
-          <span className="text-sm text-ink-2">{data.fileName}</span>
-          {data.sourceName && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-2">auto-synced · {data.sourceName}</span>}
-          <span className={`rounded-full px-2 py-0.5 text-xs ${data.status === "done" ? "bg-muted text-good" : data.status === "error" ? "bg-muted text-bad" : "bg-muted text-accent pulse"}`}>
-            {data.status === "done" ? "audit complete" : data.status === "error" ? "audit failed" : "agent working"}
-          </span>
-        </div>
-        <div className="no-print flex items-center gap-2">
-          <span className="text-xs text-ink-3">{data.mode === "trigger" ? "Trigger.dev job" : "inline job"}{data.runId ? ` · ${data.runId.slice(0, 12)}` : ""}</span>
-          {!print && <Link className="btn btn-ghost" href="/journal">Journal</Link>}
-          {r && !print && <Link className="btn btn-ghost" href={`/report/${id}`}>Report</Link>}
-          {r && print && <button className="btn" onClick={() => window.print()}>Export PDF</button>}
-          {!print && <Link className="btn" href="/">New audit</Link>}
-        </div>
-      </header>
+      <Nav right={<>
+        <span className="text-xs text-ink-3">{data.mode === "trigger" ? "Trigger.dev job" : "inline job"}{data.runId ? ` · ${data.runId.slice(0, 12)}` : ""}</span>
+        {r && !print && <Link className="btn btn-ghost" href={`/report/${id}`}>Report</Link>}
+        {r && print && <button className="btn" onClick={() => window.print()}>Export PDF</button>}
+        {!print && <Link className="btn" href="/">New audit</Link>}
+      </>} />
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 pb-4">
+        <span className="text-sm text-ink-2">{data.fileName}</span>
+        {data.sourceName && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-2">auto-synced · {data.sourceName}</span>}
+        <span className={`rounded-full px-2 py-0.5 text-xs ${data.status === "done" ? "bg-muted text-good" : data.status === "error" ? "bg-muted text-bad" : "bg-muted text-accent pulse"}`}>
+          {data.status === "done" ? "audit complete" : data.status === "error" ? "audit failed" : "agent working"}
+        </span>
+        {print && <span className="ml-auto text-xs text-ink-3">TradeAudit report · {new Date(data.createdAt).toLocaleString()}</span>}
+      </div>
 
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Activity feed: what the agent is doing, live */}

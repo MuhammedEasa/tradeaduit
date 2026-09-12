@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Sources } from "@/components/Sources";
+import { Nav } from "@/components/Nav";
 
 export default function Home() {
   const router = useRouter();
@@ -29,10 +30,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen px-6">
-      <header className="mx-auto flex max-w-5xl items-center justify-between py-6">
-        <img src="/logo.png" alt="TradeAudit" className="h-8 w-auto" />
-        <a className="text-sm text-ink-3 hover:text-ink" href="https://github.com/MuhammedEasa/tradeaduit" target="_blank" rel="noreferrer">GitHub</a>
-      </header>
+      <Nav right={<a className="text-sm text-ink-3 hover:text-ink" href="https://github.com/MuhammedEasa/tradeaduit" target="_blank" rel="noreferrer">GitHub</a>} />
 
       <section className="mx-auto max-w-3xl pt-20 pb-12 text-center">
         <p className="label mb-4 fade-up">Agents, everywhere</p>

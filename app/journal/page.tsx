@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listActions } from "@/lib/store";
+import { Nav } from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,7 @@ export default async function JournalPage() {
 
   return (
     <main className="min-h-screen px-6 pb-20">
-      <header className="mx-auto flex max-w-4xl items-center justify-between py-5">
-        <Link href="/" className="flex items-center"><img src="/logo.png" alt="TradeAudit" className="h-7 w-auto" /></Link>
-        <Link className="btn btn-ghost" href="/">Home</Link>
-      </header>
+      <Nav />
       <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <p className="label">Your commitments</p>

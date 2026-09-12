@@ -63,6 +63,15 @@ export function StageTracker({ steps, status, startedAt }: { steps: AuditStep[];
   );
 }
 
+export function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`spin h-3.5 w-3.5 ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Skeleton({ h = "h-24", className = "" }: { h?: string; className?: string }) {
   return <div className={`card ${h} ${className} animate-pulse bg-muted/60`} />;
 }
@@ -113,9 +122,10 @@ export function Bars({ rows, active, onPick }: { rows: { key: string; label: str
 const SEV_BAR: Record<Finding["severity"], string> = { high: "bg-bad", medium: "bg-warn", low: "bg-ink-3" };
 const SEV_TEXT: Record<Finding["severity"], string> = { high: "text-bad", medium: "text-warn", low: "text-ink-3" };
 
-export function FindingCard({ f, index, tag, selected, decision, onSelect, onDecide, print }: {
+export function FindingCard({ f, index, tag, selected, decision, busy, onSelect, onDecide, print }: {
   f: Finding; index: number; tag?: string; selected: boolean;
   decision?: { decision: "approved" | "rejected"; type: "journal" | "alert" };
+  busy?: boolean;
   onSelect: () => void; onDecide: (d: "approved" | "rejected") => void; print?: boolean;
 }) {
   const [open, setOpen] = useState(print ?? false);
@@ -149,6 +159,8 @@ export function FindingCard({ f, index, tag, selected, decision, onSelect, onDec
             <p className="text-[11px] leading-tight text-ink-2"><span className="font-medium text-ink">{f.suggestedAction.type === "journal" ? "Journal rule" : "Alert"}:</span> {f.suggestedAction.label.replace(/^(Journal|Alert):\s*/, "")}</p>
             {decision ? (
               <span className={`text-xs ${decision.decision === "approved" ? "text-good" : "text-ink-3"}`}>{decision.decision === "approved" ? `✓ ${decision.type === "journal" ? "added to journal" : "alert set"}` : "dismissed"}</span>
+            ) : busy ? (
+              <span className="flex items-center gap-1.5 text-xs text-ink-2"><Spinner /> Saving…</span>
             ) : (
               <div className="flex gap-1.5">
                 <button className="btn !px-3 !py-1 !text-xs" onClick={() => onDecide("approved")}>Approve</button>

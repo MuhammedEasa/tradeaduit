@@ -27,6 +27,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const [selected, setSelected] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -71,12 +72,19 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   }, [trades, filter, selected, selectedIds]);
 
   async function decide(f: Finding, decision: "approved" | "rejected") {
-    if (!f.suggestedAction || !data) return;
-    await fetch("/api/actions", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ auditId: data.id, findingId: f.id, type: f.suggestedAction.type, label: f.suggestedAction.label, decision }) });
-    const res = await fetch(`/api/audit/${id}`, { cache: "no-store" });
-    setData(await res.json());
+    if (!f.suggestedAction || !data || pending) return;
+    setPending(f.id);
+    try {
+      const res = await fetch("/api/actions", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ auditId: data.id, findingId: f.id, type: f.suggestedAction.type, label: f.suggestedAction.label, decision }) });
+      const json = (await res.json()) as { entry?: ActionEntry };
+      // Append the saved entry locally: re-fetching the whole audit re-parses every trade and left the buttons dead for seconds.
+      if (json.entry) setData((d) => (d ? { ...d, actions: [...d.actions, json.entry!] } : d));
+    } finally {
+      setPending(null);
+    }
   }
+
   const decisionFor = (f: Finding) => data?.actions.find((a) => a.findingId === f.id);
 
   if (err && !data) return <main className="p-10 text-bad">Could not load audit: {err}</main>;
@@ -195,7 +203,7 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
                 <ol className="mt-3 space-y-2">
                   {r.findings.map((f, i) => (
                     <FindingCard key={f.id} f={f} index={i} tag={r.tags[f.id]} selected={selected === f.id} print={print}
-                      decision={decisionFor(f)} onSelect={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }} onDecide={(d) => decide(f, d)} />
+                      decision={decisionFor(f)} busy={pending === f.id} onSelect={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }} onDecide={(d) => decide(f, d)} />
                   ))}
                 </ol>
               </section>

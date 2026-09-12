@@ -1,0 +1,36 @@
+# secrets - NEVER commit (repo is PUBLIC)
+.env
+.env.*
+!.env.example
+exa.txt
+
+# node / next
+node_modules/
+.next/
+out/
+*.log
+
+# trigger.dev
+.trigger/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# local data
+*.sqlite
+data/uploads/
+
+# build / misc (from create-next-app)
+/coverage
+/build
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# local-only: build notes, agent instructions, reference material
+CLAUDE.md
+AGENTS.md
+resources/

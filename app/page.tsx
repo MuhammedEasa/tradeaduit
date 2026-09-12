@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Sources } from "@/components/Sources";
 import { Nav } from "@/components/Nav";
 import { Ticker } from "@/components/Ticker";
+import { Spinner } from "@/components/ui";
 
 export default function Home() {
   const router = useRouter();
@@ -54,12 +55,14 @@ export default function Home() {
           className={`card fade-up d3 flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-14 text-center transition ${drag ? "border-accent bg-muted" : ""}`}
         >
           <input type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f, f.name); }} />
-          <span className="text-2xl">↑</span>
-          <span className="font-medium">{busy ? `Uploading ${busy}…` : "Drop your history CSV here"}</span>
-          <span className="text-sm text-ink-3">MQL5 signal exports · MT5 reports · generic CSV with headers</span>
+          {busy ? <Spinner className="h-6 w-6 text-accent" /> : <span className="text-2xl">↑</span>}
+          <span className="font-medium">{busy ? `Reading ${busy}…` : "Drop your history CSV here"}</span>
+          <span className="text-sm text-ink-3">{busy ? "Handing it to the agent" : "MQL5 signal exports · MT5 reports · generic CSV with headers"}</span>
         </label>
         <div className="mt-4 flex items-center justify-center">
-          <button className="btn btn-ghost" onClick={useSample} disabled={!!busy}>Try it with sample data</button>
+          <button className="btn btn-ghost" onClick={useSample} disabled={!!busy}>
+            {busy ? <><Spinner /> Starting the agent…</> : "Try it with sample data"}
+          </button>
         </div>
         {error && <p className="mt-4 text-center text-sm text-bad">{error}</p>}
       </section>

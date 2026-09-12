@@ -13,6 +13,7 @@ type Detector = (trades: Trade[], m: MetricsPlus) => Finding | null;
 
 // 1. Stops hit far more often than targets.
 const slVsTp: Detector = (trades, m) => {
+  if (!m.available.exitReason) return null;
   const sl = m.byExitReason.sl.count, tp = m.byExitReason.tp.count;
   if (sl + tp < 20 || tp === 0) return null;
   const ratio = sl / tp;
@@ -29,6 +30,7 @@ const slVsTp: Detector = (trades, m) => {
 
 // 1b. Manual intervention underperforms the plan (rule-based exits).
 const manualExits: Detector = (trades, m) => {
+  if (!m.available.exitReason) return null;
   const man = m.byExitReason.manual;
   const mech = trades.filter((t) => t.exitReason !== "manual");
   if (man.count < 10 || mech.length < 10) return null;
@@ -111,6 +113,7 @@ const worstHour: Detector = (trades, m) => {
 
 // 6. Big losses taken without a stop-loss.
 const noStop: Detector = (trades, m) => {
+  if (!m.available.sl) return null;   // no S/L column in this export: unknown, not "none"
   const { withoutSL, bigLossesWithoutSL } = m.slUsage;
   if (withoutSL === 0) return null;
   const share = (withoutSL / m.totalTrades) * 100;

@@ -1,7 +1,7 @@
 // THE CONTRACT — shared shapes every module (parse, metrics, findings, news, llm, job, UI) builds against.
 // Code computes every number here; the LLM only ever turns them into words.
 
-export type ExitReason = "sl" | "tp" | "manual";
+export type ExitReason = "sl" | "tp" | "manual" | "unknown"; // unknown = the export has no comment/reason column
 
 export type Trade = {
   id: string;            // stable per file: "t1", "t2", ... in chronological order of openTime
@@ -17,7 +17,7 @@ export type Trade = {
   commission: number;
   swap: number;
   profit: number;
-  exitReason: ExitReason; // from the broker comment: "[sl]" | "[tp]" | "" (manual)
+  exitReason: ExitReason; // from the broker comment: "[sl]" | "[tp]" | "" (manual); "unknown" if the export has no such column
 };
 
 export type SessionStat = { pnl: number; count: number; winRate: number };

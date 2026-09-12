@@ -88,7 +88,8 @@ const gradeOf = (pts: number): Grade => (pts >= 85 ? "A" : pts >= 70 ? "B" : pts
 // Deterministic score card. Each pillar is 0-100 from computed metrics; total is the average.
 export function scoreOf(m: Metrics, trades: Trade[]): Score {
   const profitability = Math.max(0, Math.min(100, (m.profitFactor - 0.5) * 50));       // PF 0.5 -> 0, 1.5 -> 50, 2.5 -> 100
-  const slShare = m.totalTrades ? m.slUsage.withSL / m.totalTrades : 0;
+  const slKnown = trades.some((t) => t.sl !== 0);
+  const slShare = !slKnown ? 0.8 : m.totalTrades ? m.slUsage.withSL / m.totalTrades : 0;   // unknown: neutral-ish, not zero
   const stacked = stackedGroups(trades).flat().length / Math.max(1, m.totalTrades);
   const risk = Math.max(0, Math.min(100, slShare * 70 + (1 - stacked) * 30));          // SL discipline + no stacking
   const { peak } = maxDrawdown(trades);
@@ -112,7 +113,8 @@ export function scoreOf(m: Metrics, trades: Trade[]): Score {
 // Extra breakdowns beyond the base contract; additive so nothing downstream breaks.
 export type MetricsPlus = Metrics & {
   byHour: Record<string, SessionStat>;             // "00".."23" by open hour (broker time)
-  byExitReason: Record<"sl" | "tp" | "manual", SessionStat>;
+  byExitReason: Record<"sl" | "tp" | "manual" | "unknown", SessionStat>;
+  available: { sl: boolean; exitReason: boolean };   // false when the export simply lacks the column
   stacked: { groups: number; trades: number; pnl: number };
   grossProfit: number;
   grossLoss: number;
@@ -157,6 +159,11 @@ export function computeMetrics(trades: Trade[]): MetricsPlus {
     sl: statOf(byExitRaw.sl ?? []),
     tp: statOf(byExitRaw.tp ?? []),
     manual: statOf(byExitRaw.manual ?? []),
+    unknown: statOf(byExitRaw.unknown ?? []),
+  };
+  const available = {
+    exitReason: (byExitRaw.unknown?.length ?? 0) < trades.length,
+    sl: trades.some((t) => t.sl !== 0),   // an export with an S/L column but every value 0 is indistinguishable from "no column"; treat as unknown
   };
 
   const avgLoss = avg(losses.map((t) => t.profit));
@@ -194,6 +201,7 @@ export function computeMetrics(trades: Trade[]): MetricsPlus {
     ...base,
     byHour,
     byExitReason,
+    available,
     stacked: { groups: groups.length, trades: stackedTrades.length, pnl: round2(sum(stackedTrades.map((t) => t.profit))) },
     grossProfit: round2(grossProfit),
     grossLoss: round2(grossLoss),

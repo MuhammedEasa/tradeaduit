@@ -17,6 +17,7 @@ export type ParseResult = {
   profile: string;      // which header profile matched ("mql5-signals" | "generic")
   dropped: number;      // rows skipped (pending/cancelled/balance/no profit/unparseable)
   warnings: string[];
+  columns: { sl: boolean; tp: boolean; exitReason: boolean }; // which optional facts this export actually carries
 };
 
 // Column indexes into a raw row. A profile turns the header line into one of these.
@@ -27,6 +28,7 @@ type ColumnMap = {
 };
 
 type Profile = { name: string; match: (headers: string[]) => ColumnMap | null };
+const NO_COLUMNS = { sl: false, tp: false, exitReason: false };
 
 // ---------- 1. sniff ----------
 
@@ -158,7 +160,7 @@ export function parseTrades(csvText: string): ParseResult {
   const parsed = Papa.parse<string[]>(text, { delimiter, skipEmptyLines: true });
   const rows = parsed.data;
   if (rows.length < 2) {
-    return { trades: [], profile: "none", dropped: 0, warnings: ["File has no data rows"] };
+    return { trades: [], profile: "none", dropped: 0, warnings: ["File has no data rows"], columns: NO_COLUMNS };
   }
 
   const headers = rows[0];
@@ -169,7 +171,7 @@ export function parseTrades(csvText: string): ParseResult {
     if (cols) { profile = p; break; }
   }
   if (!profile || !cols) {
-    return { trades: [], profile: "none", dropped: rows.length - 1, warnings: [`Unrecognised header: ${headers.join(delimiter)}`] };
+    return { trades: [], profile: "none", dropped: rows.length - 1, warnings: [`Unrecognised header: ${headers.join(delimiter)}`], columns: NO_COLUMNS };
   }
 
   const trades: Omit<Trade, "id">[] = [];
@@ -202,17 +204,17 @@ export function parseTrades(csvText: string): ParseResult {
       commission: toNumber(get(cols.commission)),
       swap: toNumber(get(cols.swap)),
       profit: toNumber(profitRaw),
-      exitReason: exitReasonFromComment(get(cols.comment)),
+      exitReason: cols.comment == null ? "unknown" : exitReasonFromComment(get(cols.comment)),
     });
   }
 
   if (badDates > 0) warnings.push(`${badDates} rows skipped: unparseable dates`);
-  if (cols.comment == null) warnings.push("No comment column: exit reasons unknown (all marked manual)");
+  if (cols.comment == null) warnings.push("No comment column: exit reasons unknown");
   if (cols.sl == null) warnings.push("No S/L column: stop-loss usage cannot be assessed");
 
   // Stable ids in chronological order (exports are usually newest-first).
   trades.sort((a, b) => (a.openTime < b.openTime ? -1 : a.openTime > b.openTime ? 1 : 0));
   const withIds: Trade[] = trades.map((t, i) => ({ id: `t${i + 1}`, ...t }));
 
-  return { trades: withIds, profile: profile.name, dropped, warnings };
+  return { trades: withIds, profile: profile.name, dropped, warnings, columns: { sl: cols.sl != null, tp: cols.tp != null, exitReason: cols.comment != null } };
 }

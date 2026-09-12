@@ -178,9 +178,9 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
                 <div>
                   <p className="label mb-2">By exit</p>
                   <table className="w-full text-sm"><tbody>
-                    {(["tp", "sl", "manual"] as const).map((s) => (
+                    {(m.available.exitReason ? (["tp", "sl", "manual"] as const) : (["unknown"] as const)).map((s) => (
                       <tr key={s} className={`border-t border-border ${filter.exitReason === s ? "bg-muted" : ""}`}>
-                        <td className="py-1.5">{s === "tp" ? "Take-profit hit" : s === "sl" ? "Stop-loss hit" : "Closed manually"}</td>
+                        <td className="py-1.5">{s === "tp" ? "Take-profit hit" : s === "sl" ? "Stop-loss hit" : s === "manual" ? "Closed manually" : "Exit reason not in export"}</td>
                         <td className="num py-1.5 text-right text-ink-3">{r.metrics.byExitReason[s].count}</td>
                         <td className="num py-1.5 text-right text-ink-3">{r.metrics.byExitReason[s].winRate}%</td>
                         <td className={`num py-1.5 text-right ${r.metrics.byExitReason[s].pnl >= 0 ? "text-good" : "text-bad"}`}>{money(r.metrics.byExitReason[s].pnl)}</td>

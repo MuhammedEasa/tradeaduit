@@ -5,6 +5,7 @@
 
 import { mkdir, readFile, writeFile, rename, readdir, unlink } from "node:fs/promises";
 import path from "node:path";
+import { env } from "./env";
 
 export interface KV {
   get<T>(key: string): Promise<T | null>;
@@ -52,8 +53,8 @@ function fileKV(): KV {
 
 // Vercel's Upstash integration injects UPSTASH_REDIS_REST_*; the older KV integration injects KV_REST_API_*.
 // Accept either so the deploy works whichever one the dashboard created.
-const redisUrl = () => process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? "";
-const redisToken = () => process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? "";
+const redisUrl = () => env("UPSTASH_REDIS_REST_URL") || env("KV_REST_API_URL");
+const redisToken = () => env("UPSTASH_REDIS_REST_TOKEN") || env("KV_REST_API_TOKEN");
 
 function upstashKV(): KV {
   // Lazy import keeps the dependency out of the file-backed path.

@@ -2,6 +2,7 @@
 // The dashboard only ever talks to this module through the API routes.
 
 import { randomUUID } from "node:crypto";
+import { env } from "./env";
 import { tasks, runs } from "@trigger.dev/sdk";
 import { runAudit, type AuditOutput, type PreviousSummary } from "./audit";
 import { parseTrades } from "./parse";
@@ -10,7 +11,7 @@ import type { AuditStep, Trade } from "./types";
 import type { auditTask } from "../trigger/audit";
 
 const triggerConfigured = () =>
-  !!process.env.TRIGGER_SECRET_KEY && !!process.env.TRIGGER_PROJECT_REF && process.env.AUDIT_MODE !== "inline";
+  !!env("TRIGGER_SECRET_KEY") && !!env("TRIGGER_PROJECT_REF") && process.env.AUDIT_MODE !== "inline";
 
 export function summarize(rec: AuditRecord | AuditView | null): PreviousSummary | null {
   if (!rec) return null;

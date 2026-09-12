@@ -3,6 +3,7 @@
 // or empty result the audit continues without news and the activity feed says so.
 
 import Exa from "exa-js";
+import { env } from "./env";
 
 export type NewsSource = { title: string; url: string; snippet: string; publishedDate?: string };
 export type NewsResult = { query: string; sources: NewsSource[] };
@@ -26,7 +27,7 @@ function shiftDay(day: string, delta: number): string {
 
 export async function fetchNewsForDay(symbol: string, day: string, numResults = 3): Promise<NewsResult> {
   const query = `what moved ${describeSymbol(symbol)} price on ${day}`;
-  const apiKey = process.env.EXA_API_KEY;
+  const apiKey = env("EXA_API_KEY");
   if (!apiKey) return { query, sources: [] };
 
   const exa = new Exa(apiKey);
@@ -61,7 +62,7 @@ export async function fetchHeadlines(symbols: string[], perSymbol = 3): Promise<
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.items;
 
-  const apiKey = process.env.EXA_API_KEY;
+  const apiKey = env("EXA_API_KEY");
   if (!apiKey) return [];
   const exa = new Exa(apiKey);
   const today = new Date().toISOString().slice(0, 10);

@@ -8,14 +8,15 @@ import OpenAI from "openai";
 import type { Finding } from "./types";
 import type { MetricsPlus } from "./metrics";
 import type { NewsResult } from "./news";
+import { env } from "./env";
 
 export const MODELS = {
-  cheap: process.env.LLM_CHEAP_MODEL ?? "openai/gpt-4o-mini",
-  strong: process.env.LLM_STRONG_MODEL ?? "openai/gpt-4o",
+  cheap: env("LLM_CHEAP_MODEL") || "openai/gpt-4o-mini",
+  strong: env("LLM_STRONG_MODEL") || "openai/gpt-4o",
 };
 
 function client(): OpenAI {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = env("OPENROUTER_API_KEY");
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
   return new OpenAI({
     apiKey,

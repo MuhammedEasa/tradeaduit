@@ -22,7 +22,6 @@ export const auditTask = task({
       logger.info(`${step.status}: ${step.name}`, { detail: step.detail });
     }, { previous: payload.previous ?? null });
 
-    // Trades are re-parsed by the app from the stored CSV; keep the run output small.
     const { trades: _trades, ...result } = out;
     return result;
   },

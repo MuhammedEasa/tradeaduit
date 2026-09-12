@@ -58,7 +58,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
   const steps: AuditStep[] = [];
   const log: StepSink = async (s) => { steps.push(s); await onStep(s); };
 
-  // 1. parse
   await log({ name: "Parse history", status: "running", ts: now() });
   const parsed = parseTrades(csvText);
   if (parsed.trades.length === 0) {
@@ -70,7 +69,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     detail: `Detected ${parsed.profile} export: ${parsed.trades.length} closed trades, ${parsed.dropped.toLocaleString()} non-trade rows skipped` + (parsed.warnings.length ? ` (${parsed.warnings.join("; ")})` : ""),
   });
 
-  // 2. metrics
   await log({ name: "Compute metrics", status: "running", ts: now() });
   const metrics = computeMetrics(parsed.trades);
   await log({
@@ -78,7 +76,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     detail: `Net ${metrics.totalPnL >= 0 ? "+" : ""}${metrics.totalPnL.toFixed(2)} over ${metrics.totalTrades} trades, ${metrics.winRate}% win rate, profit factor ${metrics.profitFactor}, max drawdown ${metrics.maxDrawdown.toFixed(2)}`,
   });
 
-  // 3. findings
   await log({ name: "Detect patterns", status: "running", ts: now() });
   const findings = detectFindings(parsed.trades, metrics);
   await log({
@@ -86,7 +83,7 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     detail: findings.length ? `${findings.length} findings. Top: ${findings[0].title}` : "No significant patterns found",
   });
 
-  // 3b. compare with the previous audit of this source (only on re-audits): the agent tracks progress itself
+  // Only on a re-audit of the same source: report what changed since last time.
   if (opts.previous) {
     const p = opts.previous;
     await log({ name: "Compare with last audit", status: "running", detail: `vs ${p.auditId} (${p.createdAt.slice(0, 10)})`, ts: now() });
@@ -114,7 +111,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     await log({ name: "Compare with last audit", status: "done", detail: parts.slice(0, 4).join(" · "), ts: now() });
   }
 
-  // 4. tag (cheap model via OpenRouter) - optional
   let tags: Record<string, FindingTag> = {};
   await log({ name: "Classify findings", status: "running", detail: "OpenRouter -> gpt-4o-mini", ts: now() });
   try {
@@ -124,7 +120,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     await log({ name: "Classify findings", status: "done", detail: "Skipped (LLM unavailable); findings left untagged", ts: now() });
   }
 
-  // 5. news for the worst day (Exa) - optional
   const news: NewsResult[] = [];
   const worst = metrics.worstDay;
   const worstSymbol = Object.entries(metrics.bySymbol).sort((a, b) => a[1].pnl - b[1].pnl)[0]?.[0] ?? parsed.trades[0].symbol;
@@ -148,7 +143,6 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     }
   }
 
-  // 6. report (strong model via OpenRouter) - optional, falls back to a computed summary
   await log({ name: "Write report", status: "running", detail: "OpenRouter -> gpt-4o, from computed numbers only", ts: now() });
   let report = "";
   try {
@@ -159,7 +153,7 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}, opt
     await log({ name: "Write report", status: "done", detail: "LLM unavailable; using computed summary", ts: now() });
   }
 
-  // 7. mark up the dashboard: highlight the top finding's trades, apply a filter that shows them
+  // The agent marks up the dashboard: highlight the top finding's trades and filter to them.
   const top = findings[0];
   const highlightedTradeIds = top?.tradeIds.slice(0, 500) ?? [];
   const appliedFilter = top?.id === "manual-exits" ? { exitReason: "manual" as const }

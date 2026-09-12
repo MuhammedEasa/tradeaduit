@@ -6,7 +6,6 @@ export const dynamic = "force-dynamic";
 
 const money = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// Every audit the agent has run, newest first: manual uploads and auto-synced sources alike.
 export default async function AuditsPage() {
   const audits = await listAudits();
   return (

@@ -50,7 +50,6 @@ export async function fetchNewsForDay(symbol: string, day: string, numResults = 
   return { query, sources };
 }
 
-// ---- live market headlines (the ticker) ----
 // One Exa query per instrument, last 2 days, cached in memory for 30 minutes per symbol set.
 
 export type Headline = { symbol: string; title: string; url: string; publishedDate?: string; source: string };

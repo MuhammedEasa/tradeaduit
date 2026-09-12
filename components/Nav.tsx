@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// One nav for every page: logo + Home · Dashboard · Journal. Extra page-specific actions go in `right`.
 export function Nav({ right }: { right?: React.ReactNode }) {
   const path = usePathname();
   const items = [

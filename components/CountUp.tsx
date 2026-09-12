@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-// Animates a number from 0 to its value once on mount; formatting stays with the caller.
 export function CountUp({ value, format, duration = 900 }: { value: number; format: (n: number) => string; duration?: number }) {
   const [v, setV] = useState(0);
   useEffect(() => {

@@ -6,7 +6,6 @@ import type { Grade } from "@/lib/metrics";
 
 export const money = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// ---- Stage tracker: the pipeline as chips, so a non-reader sees where the agent is ----
 export const STAGES = ["Parse history", "Compute metrics", "Detect patterns", "Compare with last audit", "Classify findings", "Fetch news", "Write report", "Mark up dashboard"] as const;
 const SHORT: Record<string, string> = { "Parse history": "Parse", "Compute metrics": "Metrics", "Detect patterns": "Patterns", "Compare with last audit": "Compare", "Classify findings": "Classify", "Fetch news": "News", "Write report": "Report", "Mark up dashboard": "Mark up" };
 
@@ -64,12 +63,10 @@ export function StageTracker({ steps, status, startedAt }: { steps: AuditStep[];
   );
 }
 
-// ---- Skeletons while the agent works ----
 export function Skeleton({ h = "h-24", className = "" }: { h?: string; className?: string }) {
   return <div className={`card ${h} ${className} animate-pulse bg-muted/60`} />;
 }
 
-// ---- Score ring ----
 const gradeColor = (g: Grade) => (g === "A" || g === "B" ? "text-good" : g === "C" ? "text-warn" : "text-bad");
 export function ScoreRing({ total, grades }: { total: number; grades: Record<string, Grade> }) {
   const r = 44, c = 2 * Math.PI * r;
@@ -93,7 +90,6 @@ export function ScoreRing({ total, grades }: { total: number; grades: Record<str
   );
 }
 
-// ---- Horizontal bars for breakdowns (replaces tables nobody reads) ----
 export function Bars({ rows, active, onPick }: { rows: { key: string; label: string; count: number; pnl: number; winRate: number }[]; active?: string; onPick?: (k: string) => void }) {
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.pnl)));
   return (
@@ -114,7 +110,6 @@ export function Bars({ rows, active, onPick }: { rows: { key: string; label: str
   );
 }
 
-// ---- A finding: big number first, title, evidence behind "why", action buttons ----
 const SEV_BAR: Record<Finding["severity"], string> = { high: "bg-bad", medium: "bg-warn", low: "bg-ink-3" };
 const SEV_TEXT: Record<Finding["severity"], string> = { high: "text-bad", medium: "text-warn", low: "text-ink-3" };
 
@@ -167,7 +162,6 @@ export function FindingCard({ f, index, tag, selected, decision, onSelect, onDec
   );
 }
 
-// ---- Report: pull the verdict and the rule out; keep the rest behind a toggle ----
 export function splitReport(md: string): { verdict: string; rule: string; rest: string } {
   const sections = md.split(/^##\s+/m).filter(Boolean);
   const get = (name: RegExp) => sections.find((s) => name.test(s.split("\n")[0] ?? ""))?.split("\n").slice(1).join("\n").trim() ?? "";

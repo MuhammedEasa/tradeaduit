@@ -1,13 +1,7 @@
-// lib/parse.ts — CSV NORMALIZER: any broker export -> canonical Trade[]
-//
-// Every platform exports a different shape (MQL5 signal history, MT5 terminal report, ...),
-// so this is a normalizer, not a one-off parser:
-//   1. sniff the file (strip BOM, detect delimiter)
-//   2. match a header PROFILE (known layout) -> column indexes; else fuzzy generic fallback
-//   3. normalize every value (numbers with " " or "," thousands separators, several date formats,
-//      buy/sell casing, "[sl]"/"[tp]" exit comments)
-//   4. drop non-trade rows (pending orders, cancelled, balance/deposit rows, rows with no profit)
-//   5. return { trades, profile, dropped, warnings } so the UI can say what it did.
+// CSV normaliser: any broker export -> canonical Trade[].
+// Every platform exports a different shape, so this sniffs the file, matches a header profile (or falls
+// back to fuzzy header matching), normalises every value, drops rows that are not closed trades, and
+// reports what it skipped.
 
 import Papa from "papaparse";
 import type { ExitReason, Trade } from "./types";
@@ -30,8 +24,6 @@ type ColumnMap = {
 type Profile = { name: string; match: (headers: string[]) => ColumnMap | null };
 const NO_COLUMNS = { sl: false, tp: false, exitReason: false };
 
-// ---------- 1. sniff ----------
-
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
@@ -46,8 +38,6 @@ export function sniffDelimiter(headerLine: string): string {
   }
   return best;
 }
-
-// ---------- 2. profiles ----------
 
 const norm = (h: string) => h.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -108,8 +98,6 @@ const generic: Profile = {
 
 const PROFILES: Profile[] = [mql5Signals, generic];
 
-// ---------- 3. value normalizers ----------
-
 // "4 343.33" -> 4343.33 ; "1,234.56" -> 1234.56 ; "" -> 0
 export function toNumber(raw: string | undefined): number {
   if (raw == null) return 0;
@@ -148,8 +136,6 @@ export function exitReasonFromComment(comment: string | undefined): ExitReason {
   if (c.includes("[tp]") || c.includes("take profit") || c.includes("takeprofit")) return "tp";
   return "manual";
 }
-
-// ---------- 4. main ----------
 
 export function parseTrades(csvText: string): ParseResult {
   const warnings: string[] = [];

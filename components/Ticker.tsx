@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { Headline } from "@/lib/news";
 
-// Scrolling strip of live headlines for the given instruments. Pauses on hover; each item links out.
 export function Ticker({ symbols }: { symbols: string[] }) {
   const [items, setItems] = useState<Headline[] | null>(null);
   const key = symbols.join(",");

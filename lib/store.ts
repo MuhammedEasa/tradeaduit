@@ -62,8 +62,6 @@ export async function latestAuditId(): Promise<string | null> {
   return (await listAudits())[0]?.id ?? null;
 }
 
-// ---- actions the human approves ----
-
 export type ActionEntry = {
   id: string;
   auditId: string;

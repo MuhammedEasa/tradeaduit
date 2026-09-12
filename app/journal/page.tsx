@@ -4,7 +4,6 @@ import { Nav } from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
 
-// The trader's journal: every rule they approved from an audit, and every alert they set.
 export default async function JournalPage() {
   const all = (await listActions()).filter((a) => a.decision === "approved").sort((a, b) => b.ts.localeCompare(a.ts));
   const journal = all.filter((a) => a.type === "journal");

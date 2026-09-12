@@ -110,7 +110,6 @@ export function scoreOf(m: Metrics, trades: Trade[]): Score {
   };
 }
 
-// Extra breakdowns beyond the base contract; additive so nothing downstream breaks.
 export type MetricsPlus = Metrics & {
   byHour: Record<string, SessionStat>;             // "00".."23" by open hour (broker time)
   byExitReason: Record<"sl" | "tp" | "manual" | "unknown", SessionStat>;

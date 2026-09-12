@@ -50,11 +50,16 @@ function fileKV(): KV {
   };
 }
 
+// Vercel's Upstash integration injects UPSTASH_REDIS_REST_*; the older KV integration injects KV_REST_API_*.
+// Accept either so the deploy works whichever one the dashboard created.
+const redisUrl = () => process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? "";
+const redisToken = () => process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? "";
+
 function upstashKV(): KV {
   // Lazy import keeps the dependency out of the file-backed path.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Redis } = require("@upstash/redis") as typeof import("@upstash/redis");
-  const redis = Redis.fromEnv();
+  const redis = new Redis({ url: redisUrl(), token: redisToken() });
   const ns = process.env.KV_NAMESPACE ?? "tradeaudit";
   const k = (key: string) => `${ns}:${key}`;
   return {
@@ -86,7 +91,7 @@ function upstashKV(): KV {
 
 let instance: KV | null = null;
 export function kv(): KV {
-  if (!instance) instance = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN ? upstashKV() : fileKV();
+  if (!instance) instance = redisUrl() && redisToken() ? upstashKV() : fileKV();
   return instance;
 }
-export const backendName = () => (process.env.UPSTASH_REDIS_REST_URL ? "upstash" : "file");
+export const backendName = () => (redisUrl() ? "upstash" : "file");

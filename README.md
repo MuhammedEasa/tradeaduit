@@ -68,7 +68,7 @@ type AuditResult = { metrics: Metrics; findings: Finding[]; news; report: string
 |---|---|
 | **OpenRouter** | Gateway for every LLM call (`lib/llm.ts`) |
 | **OpenAI** | `gpt-4o-mini` classifies findings; `gpt-4o` writes the coaching report from computed numbers |
-| **Exa** | Finds what moved the market on the trader's worst day (`lib/news.ts`) |
+| **Exa** | Finds what moved the market on the trader's worst day, and powers the live headline ticker for the instruments you trade (`lib/news.ts`) |
 | **Trigger.dev** | The agent's spine: durable task, per-step metadata, retries, daily schedule (`trigger/audit.ts`) |
 | **Google Cloud Run** | Deployment target (`Dockerfile`) |
 
@@ -85,6 +85,17 @@ npx tsx scripts/sync.ts "<folder>" <sourceId>  # local sync agent: watches a fol
 ```
 
 Supports MQL5 signal exports and MT5 history reports; header profiles in `lib/parse.ts` are extensible. Sessions are in broker server time.
+
+## Deploy (free): Vercel + Upstash + Trigger.dev cloud
+
+Storage is one seam (`lib/kv.ts`): local JSON files by default, Upstash Redis when `UPSTASH_REDIS_REST_URL/TOKEN` are set. The audit job runs in Trigger.dev's cloud, so the web app itself can be stateless.
+
+1. **Trigger.dev**: `npx trigger.dev@latest deploy` → copy the **prod** secret key from the dashboard.
+2. **Upstash**: create a free Redis database (Vercel marketplace → Upstash, or upstash.com) → copy REST URL + token.
+3. **Vercel**: import the repo, set env vars `OPENROUTER_API_KEY`, `EXA_API_KEY`, `TRIGGER_SECRET_KEY` (prod), `TRIGGER_PROJECT_REF`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `APP_URL=https://<your-app>.vercel.app` → deploy.
+4. In Trigger.dev, set the same `APP_URL` on the prod environment so the daily sync can call the app.
+
+Google Cloud Run works the same way with the included `Dockerfile` (needs a billing account); the Redis vars replace the local disk there too.
 
 ## Built today
 

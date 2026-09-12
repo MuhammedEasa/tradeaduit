@@ -6,12 +6,10 @@
 // The folder watcher (scripts/sync.ts) is the local counterpart for MT5 terminals: it pushes new files here.
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
-import path from "node:path";
+import { kv } from "./kv";
 import { startAudit } from "./runner";
 
-const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
-const FILE = path.join(DATA_DIR, "sources.json");
+const KEY = "sources";
 
 export type Source = {
   id: string;
@@ -28,13 +26,10 @@ export type Source = {
 };
 
 async function readAll(): Promise<Source[]> {
-  try { return JSON.parse(await readFile(FILE, "utf8")) as Source[]; } catch { return []; }
+  return (await kv().get<Source[]>(KEY)) ?? [];
 }
 async function writeAll(list: Source[]) {
-  await mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${FILE}.${Date.now()}.tmp`;
-  await writeFile(tmp, JSON.stringify(list, null, 1), "utf8");
-  await rename(tmp, FILE);
+  await kv().set(KEY, list);
 }
 
 export const listSources = readAll;
@@ -54,10 +49,12 @@ export async function removeSource(id: string) {
 export const hashOf = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);
 
 async function patch(id: string, p: Partial<Source>) {
-  const list = await readAll();
-  const i = list.findIndex((s) => s.id === id);
-  if (i >= 0) { list[i] = { ...list[i], ...p }; await writeAll(list); return list[i]; }
-  return null;
+  return kv().withLock(KEY, async () => {
+    const list = await readAll();
+    const i = list.findIndex((s) => s.id === id);
+    if (i >= 0) { list[i] = { ...list[i], ...p }; await writeAll(list); return list[i]; }
+    return null;
+  });
 }
 
 // Pull the file, compare with what we audited last time, audit only if it changed.

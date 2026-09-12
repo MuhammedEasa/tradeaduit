@@ -1,13 +1,9 @@
-// lib/store.ts — tiny JSON-on-disk store for audits, journal entries and alert rules.
-// Good enough for a single-user demo; swap for SQLite/Postgres by replacing these functions.
+// lib/store.ts - audits, CSVs, journal entries and alert rules on top of lib/kv.ts.
+// Same functions whether the backend is local files (dev) or Upstash Redis (Vercel / Cloud Run).
 
-import { mkdir, readFile, writeFile, readdir, rename } from "node:fs/promises";
-import path from "node:path";
+import { kv } from "./kv";
 import type { AuditStep } from "./types";
 import type { AuditOutput } from "./audit";
-
-const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
-const AUDITS = path.join(DATA_DIR, "audits");
 
 export type AuditRecord = {
   id: string;
@@ -23,52 +19,29 @@ export type AuditRecord = {
   error?: string;
 };
 
-async function ensure() {
-  await mkdir(AUDITS, { recursive: true });
-}
-
-// Atomic write: readers never see a half-written file (the dashboard polls while the job writes).
-async function writeAtomic(file: string, content: string) {
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(tmp, content, "utf8");
-  await rename(tmp, file);
-}
-
-// One writer at a time per audit id, so concurrent step updates never lose each other.
-const locks = new Map<string, Promise<void>>();
-async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = locks.get(key) ?? Promise.resolve();
-  let release!: () => void;
-  const next = new Promise<void>((r) => (release = r));
-  locks.set(key, prev.then(() => next));
-  await prev;
-  try { return await fn(); } finally { release(); if (locks.get(key) === next) locks.delete(key); }
-}
+const AUDIT = (id: string) => `audit:${id}`;
+const CSV = (id: string) => `csv:${id}`;
 
 export async function saveCsv(id: string, csv: string) {
-  await ensure();
-  await writeFile(path.join(AUDITS, `${id}.csv`), csv, "utf8");
+  await kv().set(CSV(id), csv);
 }
 
 export async function loadCsv(id: string): Promise<string> {
-  return readFile(path.join(AUDITS, `${id}.csv`), "utf8");
+  const text = await kv().get<string>(CSV(id));
+  if (text == null) throw new Error(`No CSV stored for audit ${id}`);
+  return text;
 }
 
 export async function saveAudit(rec: AuditRecord) {
-  await ensure();
-  await writeAtomic(path.join(AUDITS, `${rec.id}.json`), JSON.stringify(rec));
+  await kv().set(AUDIT(rec.id), rec);
 }
 
 export async function loadAudit(id: string): Promise<AuditRecord | null> {
-  try {
-    return JSON.parse(await readFile(path.join(AUDITS, `${id}.json`), "utf8")) as AuditRecord;
-  } catch {
-    return null;
-  }
+  return kv().get<AuditRecord>(AUDIT(id));
 }
 
 export async function updateAudit(id: string, patch: Partial<AuditRecord> | ((rec: AuditRecord) => Partial<AuditRecord>)) {
-  await withLock(id, async () => {
+  await kv().withLock(AUDIT(id), async () => {
     const rec = await loadAudit(id);
     if (!rec) return;
     await saveAudit({ ...rec, ...(typeof patch === "function" ? patch(rec) : patch) });
@@ -80,9 +53,8 @@ export async function appendStep(id: string, step: AuditStep) {
 }
 
 export async function listAudits(): Promise<AuditRecord[]> {
-  await ensure();
-  const files = (await readdir(AUDITS)).filter((f) => f.endsWith(".json"));
-  const recs = await Promise.all(files.map((f) => loadAudit(f.replace(/\.json$/, ""))));
+  const keys = await kv().keys("audit:");
+  const recs = await Promise.all(keys.map((k) => kv().get<AuditRecord>(k)));
   return recs.filter((r): r is AuditRecord => !!r).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -102,23 +74,19 @@ export type ActionEntry = {
   ts: string;
 };
 
-async function readList(name: string): Promise<ActionEntry[]> {
-  try {
-    return JSON.parse(await readFile(path.join(DATA_DIR, `${name}.json`), "utf8")) as ActionEntry[];
-  } catch {
-    return [];
-  }
-}
+const listKey = (type: ActionEntry["type"]) => (type === "journal" ? "journal" : "alerts");
 
 export async function appendAction(entry: ActionEntry) {
-  await ensure();
-  const name = entry.type === "journal" ? "journal" : "alerts";
-  const list = await readList(name);
-  list.push(entry);
-  await writeAtomic(path.join(DATA_DIR, `${name}.json`), JSON.stringify(list, null, 1));
+  const key = listKey(entry.type);
+  await kv().withLock(key, async () => {
+    const list = (await kv().get<ActionEntry[]>(key)) ?? [];
+    list.push(entry);
+    await kv().set(key, list);
+  });
 }
 
 export async function listActions(auditId?: string): Promise<ActionEntry[]> {
-  const all = [...(await readList("journal")), ...(await readList("alerts"))];
+  const [journal, alerts] = await Promise.all([kv().get<ActionEntry[]>("journal"), kv().get<ActionEntry[]>("alerts")]);
+  const all = [...(journal ?? []), ...(alerts ?? [])];
   return auditId ? all.filter((a) => a.auditId === auditId) : all;
 }

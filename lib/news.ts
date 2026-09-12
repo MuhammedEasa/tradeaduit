@@ -43,7 +43,7 @@ export async function fetchNewsForDay(symbol: string, day: string, numResults = 
     return {
       title: r.title ?? r.url,
       url: r.url,
-      snippet: ((hl && hl[0]) || "").replace(/s*...s*/g, " ").replace(/s+/g, " ").slice(0, 320),
+      snippet: ((hl && hl[0]) || "").replace(/\s*\.\.\.\s*/g, " ").replace(/\s+/g, " ").slice(0, 320),
       publishedDate: r.publishedDate,
     };
   });

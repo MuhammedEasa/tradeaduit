@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { tasks, runs } from "@trigger.dev/sdk";
-import { runAudit, type AuditOutput } from "./audit";
+import { runAudit, type AuditOutput, type PreviousSummary } from "./audit";
 import { parseTrades } from "./parse";
 import { appendStep, loadAudit, loadCsv, saveAudit, saveCsv, updateAudit, type AuditRecord } from "./store";
 import type { AuditStep, Trade } from "./types";
@@ -12,14 +12,26 @@ import type { auditTask } from "../trigger/audit";
 const triggerConfigured = () =>
   !!process.env.TRIGGER_SECRET_KEY && !!process.env.TRIGGER_PROJECT_REF && process.env.AUDIT_MODE !== "inline";
 
-export async function startAudit(csv: string, fileName: string, source?: { sourceId: string; sourceName: string }): Promise<AuditRecord> {
+export function summarize(rec: AuditRecord): PreviousSummary | null {
+  const m = rec.result?.metrics;
+  if (!m || !rec.result) return null;
+  return {
+    auditId: rec.id, createdAt: rec.createdAt, totalTrades: m.totalTrades, totalPnL: m.totalPnL, winRate: m.winRate, score: m.score.total,
+    findings: rec.result.findings.filter((f) => f.id !== "progress").map((f) => ({ id: f.id, title: f.title, stat: f.stat })),
+  };
+}
+
+export async function startAudit(csv: string, fileName: string, source?: { sourceId: string; sourceName: string; previousAuditId?: string }): Promise<AuditRecord> {
   const id = randomUUID().slice(0, 8);
   await saveCsv(id, csv);
-  const rec: AuditRecord = { id, fileName, createdAt: new Date().toISOString(), status: "queued", mode: "inline", steps: [], ...source };
+  const { previousAuditId, ...sourceInfo } = source ?? {};
+  const rec: AuditRecord = { id, fileName, createdAt: new Date().toISOString(), status: "queued", mode: "inline", steps: [], ...sourceInfo };
+  const prevRec = previousAuditId ? await loadAudit(previousAuditId) : null;
+  const previous = prevRec ? summarize(prevRec) : null;
 
   if (triggerConfigured()) {
     try {
-      const handle = await tasks.trigger<typeof auditTask>("audit-csv", { auditId: id, csv, fileName });
+      const handle = await tasks.trigger<typeof auditTask>("audit-csv", { auditId: id, csv, fileName, previous });
       rec.mode = "trigger";
       rec.runId = handle.id;
       await saveAudit(rec);
@@ -34,7 +46,7 @@ export async function startAudit(csv: string, fileName: string, source?: { sourc
   void (async () => {
     await updateAudit(id, { status: "running" });
     try {
-      const out = await runAudit(csv, (step) => appendStep(id, step));
+      const out = await runAudit(csv, (step) => appendStep(id, step), { previous });
       const { trades: _t, ...result } = out;
       await updateAudit(id, { status: "done", result, steps: out.steps });
     } catch (err) {

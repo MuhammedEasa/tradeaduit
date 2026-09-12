@@ -10,12 +10,10 @@ import { CountUp } from "./CountUp";
 import { Markdown } from "./Markdown";
 import { Nav } from "./Nav";
 import { Ticker } from "./Ticker";
+import { StageTracker, Skeleton, ScoreRing, Bars, FindingCard, splitReport, money } from "./ui";
 
 type Data = AuditView & { actions: ActionEntry[] };
 
-const money = (n: number) => `${n < 0 ? "−" : ""}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const SEV: Record<Finding["severity"], string> = { high: "text-bad", medium: "text-warn", low: "text-ink-3" };
-const GRADE_COLOR = (g: string) => (g === "A" || g === "B" ? "text-good" : g === "C" ? "text-warn" : "text-bad");
 
 function sessionOf(iso: string) { const h = parseInt(iso.slice(11, 13), 10); return h < 8 ? "asian" : h < 16 ? "london" : "ny"; }
 
@@ -26,6 +24,8 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const markedUp = useRef(false);
   const failures = useRef(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [showLog, setShowLog] = useState(false);
 
   useEffect(() => {
     let stop = false;
@@ -79,7 +79,9 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
   const decisionFor = (f: Finding) => data?.actions.find((a) => a.findingId === f.id);
 
   if (err && !data) return <main className="p-10 text-bad">Could not load audit: {err}</main>;
-  if (!data) return <main className="p-10 text-ink-3 pulse">Starting the agent…</main>;
+  if (!data) return (
+    <main className="min-h-screen px-6"><Nav /><div className="mx-auto max-w-6xl space-y-4"><Skeleton h="h-28" /><Skeleton h="h-64" /></div></main>
+  );
 
   const m = r?.metrics;
 
@@ -104,9 +106,15 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
         {/* Live headlines for the instruments in this history */}
         {m && !print && <Ticker symbols={Object.entries(m.bySymbol).sort((a, b) => b[1].count - a[1].count).slice(0, 4).map(([s]) => s)} />}
 
-        {/* Activity feed: what the agent is doing, live */}
-        {!print && (
-          <section className="mac">
+        {/* Where the agent is, at a glance */}
+        {!print && <StageTracker steps={data.steps} status={data.status} startedAt={data.createdAt} />}
+
+        {/* Activity feed: live while working, collapsed to a toggle once done */}
+        {!print && data.status === "done" && !showLog && (
+          <button className="text-xs text-ink-3 hover:text-ink" onClick={() => setShowLog(true)}>Show the agent&apos;s full log ({data.steps.length} steps) ↓</button>
+        )}
+        {!print && (data.status !== "done" || showLog) && (
+          <section className="mac fade-up d1">
             <div className="mac-bar">
               <span className="dot" style={{ background: "#ff5f57" }} /><span className="dot" style={{ background: "#febc2e" }} /><span className="dot" style={{ background: "#28c840" }} />
               <span className="ml-3 text-xs text-neutral-400">agent — activity feed</span>
@@ -123,6 +131,10 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
               {data.status === "error" && <li className="text-[#ff5f57]">✗ {data.error}</li>}
             </ol>
           </section>
+        )}
+
+        {!m && data.status !== "error" && (
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} h="h-20" className={`fade-up d${i}`} />)}</div>
         )}
 
         {m && r && (
@@ -144,14 +156,9 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
             <div className="grid gap-6 lg:grid-cols-3">
               {/* Score card */}
               <section className="card p-5 fade-up d2">
-                <p className="label">Score</p>
-                <div className="mt-2 flex items-end gap-2"><span className="num text-5xl font-semibold"><CountUp value={m.score.total} format={(n) => String(Math.round(n))} duration={1400} /></span><span className="mb-2 text-ink-3">/100</span></div>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  {Object.entries(m.score.grades).map(([k, g]) => (
-                    <div key={k} className={`pop d${["profitability","risk","drawdown","consistency"].indexOf(k) + 5}`}><p className="text-xs capitalize text-ink-3">{k}</p><p className={`num text-2xl font-semibold ${GRADE_COLOR(g)}`}>{g}</p></div>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs text-ink-3">{r.parse.profile} · {r.parse.tradeCount} trades · {r.parse.dropped.toLocaleString()} rows skipped · {m.dateRange.from.slice(0, 10)} → {m.dateRange.to.slice(0, 10)}</p>
+                <div className="flex items-baseline justify-between"><p className="label">Score</p><p className="text-xs text-ink-3">computed, not guessed</p></div>
+                <div className="mt-4"><ScoreRing total={m.score.total} grades={m.score.grades} /></div>
+                <p className="mt-4 text-xs text-ink-3">{r.parse.tradeCount} trades · {m.dateRange.from.slice(0, 10)} → {m.dateRange.to.slice(0, 10)} · {r.parse.profile} export, {r.parse.dropped.toLocaleString()} non-trade rows skipped</p>
               </section>
 
               {/* Equity curve */}
@@ -162,104 +169,70 @@ export function Dashboard({ id, print = false }: { id: string; print?: boolean }
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              {/* Breakdown tables */}
+              {/* Breakdowns as bars: click one to filter the table */}
               <section className="card p-5 space-y-5 fade-up d4">
                 <div>
-                  <p className="label mb-2">By session (broker time)</p>
-                  <table className="w-full text-sm"><tbody>
-                    {(["asian", "london", "ny"] as const).map((s) => (
-                      <tr key={s} className={`border-t border-border ${filter.session === s ? "bg-muted" : ""}`}>
-                        <td className="py-1.5 capitalize">{s === "ny" ? "New York" : s}</td>
-                        <td className="num py-1.5 text-right text-ink-3">{m.bySession[s].count}</td>
-                        <td className="num py-1.5 text-right text-ink-3">{m.bySession[s].winRate}%</td>
-                        <td className={`num py-1.5 text-right ${m.bySession[s].pnl >= 0 ? "text-good" : "text-bad"}`}>{money(m.bySession[s].pnl)}</td>
-                      </tr>
-                    ))}
-                  </tbody></table>
+                  <p className="label mb-2">By session <span className="normal-case tracking-normal">(broker time)</span></p>
+                  <Bars active={filter.session} onPick={(k) => setFilter({ ...filter, session: filter.session === k ? undefined : k, onlyHighlighted: false })}
+                    rows={(["asian", "london", "ny"] as const).map((k) => ({ key: k, label: k === "ny" ? "New York" : k === "asian" ? "Asian" : "London", ...m.bySession[k] }))} />
                 </div>
                 <div>
                   <p className="label mb-2">By exit</p>
-                  <table className="w-full text-sm"><tbody>
-                    {(m.available.exitReason ? (["tp", "sl", "manual"] as const) : (["unknown"] as const)).map((s) => (
-                      <tr key={s} className={`border-t border-border ${filter.exitReason === s ? "bg-muted" : ""}`}>
-                        <td className="py-1.5">{s === "tp" ? "Take-profit hit" : s === "sl" ? "Stop-loss hit" : s === "manual" ? "Closed manually" : "Exit reason not in export"}</td>
-                        <td className="num py-1.5 text-right text-ink-3">{r.metrics.byExitReason[s].count}</td>
-                        <td className="num py-1.5 text-right text-ink-3">{r.metrics.byExitReason[s].winRate}%</td>
-                        <td className={`num py-1.5 text-right ${r.metrics.byExitReason[s].pnl >= 0 ? "text-good" : "text-bad"}`}>{money(r.metrics.byExitReason[s].pnl)}</td>
-                      </tr>
-                    ))}
-                  </tbody></table>
+                  <Bars active={filter.exitReason} onPick={(k) => setFilter({ ...filter, exitReason: filter.exitReason === k ? undefined : k, onlyHighlighted: false })}
+                    rows={(m.available.exitReason ? (["tp", "sl", "manual"] as const) : (["unknown"] as const)).map((k) => ({ key: k, label: k === "tp" ? "Take-profit hit" : k === "sl" ? "Stop-loss hit" : k === "manual" ? "Closed by hand" : "Exit reason not in export", ...m.byExitReason[k] }))} />
                 </div>
                 <div>
-                  <p className="label mb-2">By symbol</p>
-                  <table className="w-full text-sm"><tbody>
-                    {Object.entries(m.bySymbol).sort((a, b) => b[1].count - a[1].count).slice(0, 6).map(([s, v]) => (
-                      <tr key={s} className="border-t border-border">
-                        <td className="num py-1.5">{s}</td><td className="num py-1.5 text-right text-ink-3">{v.count}</td><td className="num py-1.5 text-right text-ink-3">{v.winRate}%</td>
-                        <td className={`num py-1.5 text-right ${v.pnl >= 0 ? "text-good" : "text-bad"}`}>{money(v.pnl)}</td>
-                      </tr>
-                    ))}
-                  </tbody></table>
+                  <p className="label mb-2">By instrument</p>
+                  <Bars rows={Object.entries(m.bySymbol).sort((x, y) => y[1].count - x[1].count).slice(0, 5).map(([k, v]) => ({ key: k, label: k, ...v }))} />
                 </div>
               </section>
 
               {/* Findings + actions */}
               <section className="card p-5 lg:col-span-2 fade-up d5">
-                <div className="flex items-baseline justify-between"><p className="label">Findings</p><p className="text-xs text-ink-3">{r.findings.length} detected · click one to highlight its trades</p></div>
-                <ol className="mt-3 divide-y divide-border">
-                  {r.findings.map((f, i) => {
-                    const d = decisionFor(f);
-                    return (
-                      <li key={f.id} id={f.id} className={`py-3 fade-up d${Math.min(8, i + 1)} transition-colors ${selected === f.id ? "bg-muted -mx-3 px-3 rounded-lg" : ""}`}>
-                        <button className="flex w-full items-start gap-3 text-left" onClick={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }}>
-                          <span className="num mt-0.5 text-xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
-                          <span className="flex-1">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className={`text-[11px] font-medium uppercase tracking-wider ${SEV[f.severity]}`}>{f.severity}</span>
-                              {r.tags[f.id] && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-ink-2">{r.tags[f.id]}</span>}
-                              <span className="font-medium">{f.title}</span>
-                            </span>
-                            <span className="mt-1 block text-sm leading-relaxed text-ink-2">{f.evidence}</span>
-                          </span>
-                        </button>
-                        {f.suggestedAction && (
-                          <div className="no-print mt-2 flex flex-wrap items-center gap-2 pl-8">
-                            <span className="text-sm text-ink-2">{f.suggestedAction.label}</span>
-                            {d ? (
-                              <span className={`text-xs ${d.decision === "approved" ? "text-good" : "text-ink-3"}`}>{d.decision === "approved" ? <>✓ {d.type === "journal" ? "added to journal" : "alert set"} · <Link className="underline" href="/journal">view</Link></> : "dismissed"}</span>
-                            ) : (
-                              <>
-                                <button className="btn !py-1 !px-3 !text-xs" onClick={() => decide(f, "approved")}>Approve</button>
-                                <button className="btn btn-ghost !py-1 !px-3 !text-xs" onClick={() => decide(f, "rejected")}>Reject</button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
+                <div className="flex items-baseline justify-between"><p className="label">What the agent found</p><p className="text-xs text-ink-3">{r.findings.length} findings · tap one to see its trades</p></div>
+                <ol className="mt-3 space-y-2">
+                  {r.findings.map((f, i) => (
+                    <FindingCard key={f.id} f={f} index={i} tag={r.tags[f.id]} selected={selected === f.id} print={print}
+                      decision={decisionFor(f)} onSelect={() => { setSelected(f.id); setFilter({ onlyHighlighted: true }); }} onDecide={(d) => decide(f, d)} />
+                  ))}
                 </ol>
               </section>
             </div>
 
-            {/* Coaching report + news */}
+            {/* Coaching report: verdict + rule up front, full text on demand */}
+            {(() => { const { verdict, rule, rest } = splitReport(r.report); return (
             <section className="card p-6 fade-up d6">
-              <div className="flex items-baseline justify-between"><p className="label">Coaching report</p><p className="text-xs text-ink-3">written by GPT-4o via OpenRouter from the numbers above · no figure is generated by the model</p></div>
-              <div className="report mt-2 max-w-3xl text-[15px]"><Markdown text={r.report} /></div>
+              <div className="flex items-baseline justify-between"><p className="label">Coach&apos;s verdict</p><p className="text-xs text-ink-3">GPT-4o via OpenRouter · only uses the numbers above</p></div>
+              <div className="report mt-3 grid gap-4 lg:grid-cols-3">
+                <blockquote className="lg:col-span-2 border-l-4 border-ink pl-4 text-[17px] leading-relaxed"><Markdown text={verdict || r.report.slice(0, 400)} /></blockquote>
+                {rule && (
+                  <div className="rounded-xl bg-ink p-4 text-white">
+                    <p className="text-[11px] uppercase tracking-wider text-neutral-400">This week&apos;s rule</p>
+                    <div className="mt-2 text-[15px] leading-relaxed [&_strong]:text-white [&_a]:text-white"><Markdown text={rule} /></div>
+                  </div>
+                )}
+              </div>
+              {rest && (
+                <div className="mt-4">
+                  {(showReport || print) ? <div className="report max-w-3xl text-[15px]"><Markdown text={rest} /></div>
+                    : <button className="btn btn-ghost !text-xs" onClick={() => setShowReport(true)}>Read the full report ↓</button>}
+                </div>
+              )}
               {r.news.some((n) => n.sources.length) && (
                 <div className="mt-6 border-t border-border pt-4">
                   <p className="label mb-2">What moved the market on the worst day · via Exa</p>
                   <ul className="grid gap-3 sm:grid-cols-3">
-                    {r.news.flatMap((n) => n.sources).map((s) => (
-                      <li key={s.url} className="rounded-lg border border-border p-3 text-sm">
-                        <a className="font-medium text-accent hover:underline" href={s.url} target="_blank" rel="noreferrer">{s.title}</a>
-                        <p className="mt-1 text-xs leading-relaxed text-ink-2">{s.snippet}</p>
+                    {r.news.flatMap((n) => n.sources).map((src) => (
+                      <li key={src.url} className="rounded-lg border border-border p-3 text-sm">
+                        <a className="font-medium text-accent hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title}</a>
+                        <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-ink-2">{src.snippet}</p>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
             </section>
+            ); })()}
 
             {/* Trades table */}
             {!print && (

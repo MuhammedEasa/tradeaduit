@@ -24,6 +24,19 @@ export type AuditOutput = {
 
 export type StepSink = (step: AuditStep) => void | Promise<void>;
 
+// What the runner hands over from the previous audit of the same source, so the agent can report progress.
+export type PreviousSummary = {
+  auditId: string;
+  createdAt: string;
+  totalTrades: number;
+  totalPnL: number;
+  winRate: number;
+  score: number;
+  findings: { id: string; title: string; stat?: { value: string; label: string } }[];
+};
+
+export type AuditOptions = { previous?: PreviousSummary | null };
+
 const now = () => new Date().toISOString();
 
 async function withRetry<T>(name: string, fn: () => Promise<T>, log: StepSink, attempts = 3): Promise<T> {
@@ -41,7 +54,7 @@ async function withRetry<T>(name: string, fn: () => Promise<T>, log: StepSink, a
   throw lastErr;
 }
 
-export async function runAudit(csvText: string, onStep: StepSink = () => {}): Promise<AuditOutput & { trades: Trade[] }> {
+export async function runAudit(csvText: string, onStep: StepSink = () => {}, opts: AuditOptions = {}): Promise<AuditOutput & { trades: Trade[] }> {
   const steps: AuditStep[] = [];
   const log: StepSink = async (s) => { steps.push(s); await onStep(s); };
 
@@ -72,6 +85,34 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}): Pr
     name: "Detect patterns", status: "done", ts: now(),
     detail: findings.length ? `${findings.length} findings. Top: ${findings[0].title}` : "No significant patterns found",
   });
+
+  // 3b. compare with the previous audit of this source (only on re-audits): the agent tracks progress itself
+  if (opts.previous) {
+    const p = opts.previous;
+    await log({ name: "Compare with last audit", status: "running", detail: `vs ${p.auditId} (${p.createdAt.slice(0, 10)})`, ts: now() });
+    const d = (a: number, b: number, digits = 0) => `${b.toFixed(digits)} → ${a.toFixed(digits)}`;
+    const newIds = new Set(findings.map((f) => f.id));
+    const gone = p.findings.filter((f) => !newIds.has(f.id));
+    const appeared = findings.filter((f) => !p.findings.some((pf) => pf.id === f.id));
+    const scoreDelta = metrics.score.total - p.score;
+    const parts = [
+      `score ${d(metrics.score.total, p.score)}`,
+      `net ${d(metrics.totalPnL, p.totalPnL, 2)}`,
+      `trades ${d(metrics.totalTrades, p.totalTrades)}`,
+      `win rate ${d(metrics.winRate, p.winRate, 1)}%`,
+      gone.length ? `resolved: ${gone.map((f) => f.id).join(", ")}` : "",
+      appeared.length ? `new: ${appeared.map((f) => f.id).join(", ")}` : "",
+    ].filter(Boolean);
+    findings.unshift({
+      id: "progress",
+      severity: scoreDelta < 0 ? "medium" : "low",
+      title: scoreDelta > 0 ? `Improving: score up ${scoreDelta} since the last audit` : scoreDelta < 0 ? `Slipping: score down ${-scoreDelta} since the last audit` : "No change in score since the last audit",
+      stat: { value: `${scoreDelta > 0 ? "+" : ""}${scoreDelta}`, label: `score change since ${p.createdAt.slice(0, 10)}` },
+      evidence: `Since the audit on ${p.createdAt.slice(0, 10)}: ${parts.join("; ")}. ${metrics.totalTrades - p.totalTrades} new trades were added.`,
+      tradeIds: [],
+    });
+    await log({ name: "Compare with last audit", status: "done", detail: parts.slice(0, 4).join(" · "), ts: now() });
+  }
 
   // 4. tag (cheap model via OpenRouter) - optional
   let tags: Record<string, FindingTag> = {};

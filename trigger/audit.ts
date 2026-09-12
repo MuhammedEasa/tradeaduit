@@ -3,10 +3,10 @@
 // retries on failure, and a scheduled task re-runs the latest audit every day.
 
 import { task, schedules, metadata, logger } from "@trigger.dev/sdk";
-import { runAudit, type AuditOutput } from "../lib/audit";
+import { runAudit, type AuditOutput, type PreviousSummary } from "../lib/audit";
 import type { AuditStep } from "../lib/types";
 
-export type AuditPayload = { auditId: string; csv: string; fileName: string };
+export type AuditPayload = { auditId: string; csv: string; fileName: string; previous?: PreviousSummary | null };
 
 export const auditTask = task({
   id: "audit-csv",
@@ -20,7 +20,7 @@ export const auditTask = task({
       steps.push(step);
       metadata.set("steps", steps);
       logger.info(`${step.status}: ${step.name}`, { detail: step.detail });
-    });
+    }, { previous: payload.previous ?? null });
 
     // Trades are re-parsed by the app from the stored CSV; keep the run output small.
     const { trades: _trades, ...result } = out;

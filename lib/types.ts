@@ -45,6 +45,7 @@ export type Finding = {
   id: string;
   severity: "high" | "medium" | "low";
   title: string;
+  stat?: { value: string; label: string };   // the one number to show big, e.g. { value: "5%", label: "win rate on manual closes" }
   evidence: string;
   tradeIds: string[];
   suggestedAction?: { type: "journal" | "alert"; label: string };

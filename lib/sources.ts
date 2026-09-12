@@ -76,7 +76,7 @@ export async function syncSource(id: string, opts: { force?: boolean } = {}): Pr
     if (!opts.force && hash === src.lastHash) {
       return patch(id, { lastCheckedAt: checkedAt, lastOutcome: "unchanged", lastError: undefined });
     }
-    const rec = await startAudit(text, `${src.name}.csv`, { sourceId: src.id, sourceName: src.name });
+    const rec = await startAudit(text, `${src.name}.csv`, { sourceId: src.id, sourceName: src.name, previousAuditId: src.lastAuditId });
     return patch(id, { lastCheckedAt: checkedAt, lastHash: hash, lastAuditId: rec.id, lastOutcome: "new-audit", lastError: undefined, syncCount: src.syncCount + 1 });
   } catch (err) {
     return patch(id, { lastCheckedAt: checkedAt, lastOutcome: "error", lastError: (err as Error).message.slice(0, 200) });
@@ -89,7 +89,7 @@ export async function ingestForSource(id: string, text: string, fileName: string
   if (!src) throw new Error("Unknown source");
   const hash = hashOf(text);
   if (hash === src.lastHash) { await patch(id, { lastCheckedAt: new Date().toISOString(), lastOutcome: "unchanged" }); return { audited: false, auditId: src.lastAuditId }; }
-  const rec = await startAudit(text, fileName, { sourceId: src.id, sourceName: src.name });
+  const rec = await startAudit(text, fileName, { sourceId: src.id, sourceName: src.name, previousAuditId: src.lastAuditId });
   await patch(id, { lastCheckedAt: new Date().toISOString(), lastHash: hash, lastAuditId: rec.id, lastOutcome: "new-audit", syncCount: src.syncCount + 1 });
   return { audited: true, auditId: rec.id };
 }

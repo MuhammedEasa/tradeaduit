@@ -91,7 +91,12 @@ export async function runAudit(csvText: string, onStep: StepSink = () => {}): Pr
     const daySymbol = parsed.trades.filter((t) => t.closeTime.startsWith(worst.day)).sort((a, b) => a.profit - b.profit)[0]?.symbol ?? worstSymbol;
     await log({ name: "Fetch news", status: "running", detail: `Exa: what moved ${daySymbol} on ${worst.day}?`, ts: now() });
     try {
-      const n = await withRetry("Fetch news", () => fetchNewsForDay(daySymbol, worst.day), log, 3);
+      let attempt = 0;
+      const n = await withRetry("Fetch news", () => {
+        // DEMO_FAIL_ONCE=news: first attempt throws so the retry path is visible in the feed (labelled as simulated).
+        if (process.env.DEMO_FAIL_ONCE === "news" && attempt++ === 0) throw new Error("simulated network timeout");
+        return fetchNewsForDay(daySymbol, worst.day);
+      }, log, 3);
       news.push(n);
       await log({
         name: "Fetch news", status: "done", ts: now(),
